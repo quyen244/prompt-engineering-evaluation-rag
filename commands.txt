@@ -1,2 +1,12 @@
 command to run mlflow with backend uri :
-mlflow ui --backend-store-uri sqlite:///src/mlflow.db
+mlflow ui --backend-store-uri sqlite:///mlflow.db
+
+
+Build a Custom Docker Image (Recommended for Production)
+mlflow models build-docker \
+    --model-uri "models:/lr-v1@champion" \
+    --name "lr-v1-serving-image"
+
+
+ Run Your Custom Container
+ docker run -p 5001:8080 lr-v1-serving-image

@@ -11,3 +11,9 @@ mlflow.db
 __pycache__/
 
 
+mlruns/
+
+
+commands.txt 
+knowledge.md
+lessons.md
