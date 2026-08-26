@@ -1,0 +1,2 @@
+command to run mlflow with backend uri :
+mlflow ui --backend-store-uri sqlite:///src/mlflow.db
