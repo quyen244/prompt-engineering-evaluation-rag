@@ -5,3 +5,6 @@ scikit-learn
 llama-index
 llama-index-llms-openrouter
 llama-index-embeddings-huggingface
+
+
+streamlit
