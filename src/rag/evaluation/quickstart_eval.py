@@ -33,31 +33,50 @@ class OpenRouter:
             "model": model,
             "messages": messages,
             'max_tokens' : max_tokens,
-            'thinking' : False
         }
         
-        try:
-            response = await asyncio.wait_for(
-                asyncio.to_thread(
-                    requests.post,
-                    url=url,
-                    headers=headers,
-                    json=payload,
+        last_error = None
+        for attempt in range(self.max_retries):
+            try:
+                response = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        requests.post,
+                        url=url,
+                        headers=headers,
+                        json=payload,
+                        timeout=self.max_timeout
+                    ),
                     timeout=self.max_timeout
-                ),
-                timeout=self.max_timeout
-            )
-            
-            if response.status_code == 200:
-                return response.json()
-            else:
+                )
+
+                if response.status_code == 200:
+                    return response.json()
+
+                # 429/5xx: OpenRouter free tier hay bị rate-limit upstream -> retry
+                if response.status_code == 429 or response.status_code >= 500:
+                    last_error = f"API Error: {response.status_code} - {response.text}"
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+
                 raise Exception(f"API Error: {response.status_code} - {response.text}")
-                
-        except Exception as e:
-            raise Exception(f"Request failed: {str(e)}")
+
+            except asyncio.TimeoutError as e:
+                last_error = f"Timeout after {self.max_timeout}s"
+                if attempt == self.max_retries - 1:
+                    raise Exception(f"Request failed: {last_error}") from e
+                await asyncio.sleep(2 ** attempt)
+
+        raise Exception(f"Request failed: {last_error}")
 
 # Set environment
+# MLflow judge chạy qua provider "openrouter" -> chỉ cần OPENROUTER_API_KEY.
+# KHÔNG set OPENAI_API_KEY bằng key sk-or-... vì judge sẽ gọi thẳng api.openai.com và fail.
 os.environ['OPENROUTER_API_KEY'] = Config.OPENROUTER_API_KEY
+os.environ.pop('OPENAI_API_KEY', None)
+
+# Model URI cho mọi judge/scorer của MLflow: "<provider>:/<model-name>"
+JUDGE_MODEL_URI = f"openrouter:/{Config.JUDGE_MODEL}"
+JUDGE_PARAMS = {"max_tokens": Config.JUDGE_MAX_TOKENS}
 
 # MLflow setup
 mlflow.set_tracking_uri("sqlite:///mlflow.db")
@@ -92,8 +111,10 @@ def my_agent(question: str) -> str:
         return response['choices'][0]['message']['content']
     finally:
         loop.close()
+        asyncio.set_event_loop(None)
 
 
+@mlflow.trace
 def qa_predict_fn(question: str) -> str:
     """Wrapper function for evaluation using ``my_agent``."""
     return my_agent(question)
@@ -115,13 +136,15 @@ eval_dataset = [
 ]
 
 from mlflow.genai import scorer
-from mlflow.genai.scorers import Correctness, Guidelines 
 from mlflow.genai.judges import make_judge
 
 # Evaluation with Custom Code-based Metrics
 @scorer
 def is_concise(outputs: str) -> bool:
     """Evaluate if the answer is concise (less than 5 words)"""
+    # outputs có thể là None khi predict_fn lỗi (rate limit, timeout...)
+    if not outputs:
+        return False
     return len(outputs.split()) <= 5
     
 
@@ -137,21 +160,51 @@ faithfulness_judge = make_judge(
         "Expected Answer (Ground Truth): {{ expectations['expected_response'] }}. "
         "Rate the faithfulness on a scale from 0.0 to 1.0, where 1.0 is completely faithful and 0.0 is completely unfaithful."
     ),
-    model=f"openrouter:/{Config.MODEL}",
-    base_url = Config.OPENROUTER_BASE_URL,
-    extra_headers = {
-            "Authorization": f"Bearer {Config.OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
-        },
+    # base_url/extra_headers KHÔNG cần: provider "openrouter" đã có sẵn endpoint
+    # https://openrouter.ai/api/v1/chat/completions và tự đọc OPENROUTER_API_KEY.
+    model=JUDGE_MODEL_URI,
+    inference_params=JUDGE_PARAMS,
     feedback_value_type=float # Giá trị trả về là float
 )
 
 
+# NOTE: không dùng builtin scorer Correctness()/Guidelines() của mlflow 3.15:
+# chúng không truyền `inference_params` xuống judge, nên OpenRouter nhận
+# max_tokens mặc định (= context tối đa của model) và trả lỗi
+# "This request requires more credits, or fewer max_tokens".
+# make_judge() có truyền, nên tự định nghĩa 2 judge tương đương.
+correctness_judge = make_judge(
+    name="correctness",
+    instructions=(
+        "You are an expert evaluator. Decide whether the agent's answer is correct. "
+        "Question: {{ inputs['question'] }}, "
+        "Agent's Answer: {{ outputs }}, "
+        "Expected Answer (Ground Truth): {{ expectations['expected_response'] }}. "
+        "Answer true if the agent's answer matches the expected answer in meaning, otherwise false."
+    ),
+    model=JUDGE_MODEL_URI,
+    inference_params=JUDGE_PARAMS,
+    feedback_value_type=bool,
+)
+
+is_english_judge = make_judge(
+    name="is_english",
+    instructions=(
+        "Check the language of the agent's answer. "
+        "Agent's Answer: {{ outputs }}. "
+        "Answer true if the answer is written in English, otherwise false."
+    ),
+    model=JUDGE_MODEL_URI,
+    inference_params=JUDGE_PARAMS,
+    feedback_value_type=bool,
+)
+
+
 scorers = [
-    Correctness(),
-    Guidelines(name="is_english", guidelines="The answer must be in English"),
+    correctness_judge,
+    is_english_judge,
     is_concise,
-    faithfulness_judge
+    faithfulness_judge,
 ]
 
 

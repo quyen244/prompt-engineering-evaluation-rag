@@ -9,6 +9,12 @@ class Config:
     OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
     OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY' , '')
     MODEL = 'inclusionai/ling-3.0-flash'
+    # Model dùng cho LLM-as-a-judge (MLflow scorers). Tách riêng khỏi MODEL
+    # của agent để có thể đổi sang model mạnh hơn khi tài khoản đủ credit.
+    JUDGE_MODEL = os.getenv('JUDGE_MODEL', MODEL)
+    # OpenRouter từ chối request nếu max_tokens vượt số credit còn lại, nên
+    # phải gửi max_tokens tường minh cho judge.
+    JUDGE_MAX_TOKENS = int(os.getenv('JUDGE_MAX_TOKENS', '2000'))
 
     @classmethod
     def verify_api_key(cls):
