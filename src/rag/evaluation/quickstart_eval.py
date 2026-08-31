@@ -7,8 +7,6 @@ import asyncio
 from src.config import Config
 import sys
 
-from typing import Literal
-
 # # Kiểm tra API key
 # if not Config.verify_api_key():
 #     sys.exit("Error: OPENROUTER_API_KEY không hợp lệ hoặc chưa cấu hình")
@@ -33,6 +31,7 @@ class OpenRouter:
             "model": model,
             "messages": messages,
             'max_tokens' : max_tokens,
+            'thinking' : False,
         }
         
         last_error = None
@@ -73,10 +72,12 @@ class OpenRouter:
 # KHÔNG set OPENAI_API_KEY bằng key sk-or-... vì judge sẽ gọi thẳng api.openai.com và fail.
 os.environ['OPENROUTER_API_KEY'] = Config.OPENROUTER_API_KEY
 os.environ.pop('OPENAI_API_KEY', None)
+# Free tier của OpenRouter bị rate-limit upstream khi gọi song song nhiều judge
+os.environ.setdefault('MLFLOW_GENAI_EVAL_MAX_WORKERS', '2')
 
 # Model URI cho mọi judge/scorer của MLflow: "<provider>:/<model-name>"
 JUDGE_MODEL_URI = f"openrouter:/{Config.JUDGE_MODEL}"
-JUDGE_PARAMS = {"max_tokens": Config.JUDGE_MAX_TOKENS}
+JUDGE_PARAMS = {"max_tokens": Config.JUDGE_MAX_TOKENS, "thinking": False}
 
 # MLflow setup
 mlflow.set_tracking_uri("sqlite:///mlflow.db")
@@ -158,7 +159,8 @@ faithfulness_judge = make_judge(
         "Question: {{ inputs['question'] }}, "
         "Agent's Answer: {{ outputs }}, "
         "Expected Answer (Ground Truth): {{ expectations['expected_response'] }}. "
-        "Rate the faithfulness on a scale from 0.0 to 1.0, where 1.0 is completely faithful and 0.0 is completely unfaithful."
+        "Rate the faithfulness on a scale from 0.0 to 1.0, where 1.0 is completely faithful and 0.0 is completely unfaithful. "
+        "Keep the rationale under 20 words."
     ),
     # base_url/extra_headers KHÔNG cần: provider "openrouter" đã có sẵn endpoint
     # https://openrouter.ai/api/v1/chat/completions và tự đọc OPENROUTER_API_KEY.
@@ -180,7 +182,8 @@ correctness_judge = make_judge(
         "Question: {{ inputs['question'] }}, "
         "Agent's Answer: {{ outputs }}, "
         "Expected Answer (Ground Truth): {{ expectations['expected_response'] }}. "
-        "Answer true if the agent's answer matches the expected answer in meaning, otherwise false."
+        "Answer true if the agent's answer matches the expected answer in meaning, otherwise false. "
+        "Keep the rationale under 20 words."
     ),
     model=JUDGE_MODEL_URI,
     inference_params=JUDGE_PARAMS,
@@ -192,7 +195,8 @@ is_english_judge = make_judge(
     instructions=(
         "Check the language of the agent's answer. "
         "Agent's Answer: {{ outputs }}. "
-        "Answer true if the answer is written in English, otherwise false."
+        "Answer true if the answer is written in English, otherwise false. "
+        "Keep the rationale under 20 words."
     ),
     model=JUDGE_MODEL_URI,
     inference_params=JUDGE_PARAMS,
@@ -201,9 +205,9 @@ is_english_judge = make_judge(
 
 
 scorers = [
-    correctness_judge,
-    is_english_judge,
-    is_concise,
+    # correctness_judge,
+    # is_english_judge,
+    # is_concise,
     faithfulness_judge,
 ]
 
