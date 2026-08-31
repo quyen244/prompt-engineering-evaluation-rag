@@ -1,26 +1,39 @@
-
-
+# Môi trường
+.venv/
 venv/
+venv_311/
+__pycache__/
+*.pyc
 
+# Bí mật — KHÔNG BAO GIỜ commit
 .env
 
-
+# MLflow
 mlflow.db
-
-
-__pycache__/
-
-
 mlruns/
+mlartifacts/
 
+# Cache của practice (judge responses, embedding)
+.cache/
 
-commands.txt 
+# Model HuggingFace tải về
+.hf_cache/
+
+# Dữ liệu người dùng upload
+uploads/
+storage/
+qdrant_storage/
+
+# Ghi chú cá nhân
+commands.txt
 knowledge.md
 lessons.md
+design_patterns.md
 
-
-
+# Dữ liệu nguồn (bỏ dòng này nếu muốn commit tài liệu mẫu)
 data/
 
-
-design_patterns.md
+# Output sinh ra
+artifacts/*.png
+artifacts/*.json
+eval_data/results/

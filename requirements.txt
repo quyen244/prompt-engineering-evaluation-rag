@@ -1,10 +1,10 @@
-mlflow
-scikit-learn
+# File này giữ lại cho tương thích ngược.
+# Danh sách thật nằm ở requirements/base.txt (có pin version + ghi chú phase).
+#
+# Cài đặt đúng cách:
+#   py -3.11 -m venv .venv
+#   .venv\Scripts\activate
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch
+#   pip install -r requirements/base.txt
 
-
-llama-index
-llama-index-llms-openrouter
-llama-index-embeddings-huggingface
-
-
-streamlit
+-r requirements/base.txt

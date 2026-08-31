@@ -1,0 +1,74 @@
+# Base requirements — Python 3.11
+#
+# Cài đặt:
+#   py -3.11 -m venv .venv
+#   .venv\Scripts\activate
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch
+#   pip install -r requirements/base.txt
+#
+# LƯU Ý: cài torch CPU-only TRƯỚC. Nếu để pip tự giải, nó kéo bản CUDA ~2.5GB
+# mà máy bạn không dùng đến.
+
+# ---- Core RAG ----
+llama-index-core>=0.12,<0.15
+llama-index-readers-file>=0.4
+llama-index-llms-openrouter>=0.3
+llama-index-embeddings-huggingface>=0.5
+llama-index-vector-stores-qdrant>=0.6
+llama-index-retrievers-bm25>=0.5
+
+# ---- Embedding local (Phase 0) ----
+sentence-transformers>=3.3
+transformers>=4.47
+
+# ---- Vector store (Phase 0/7) ----
+qdrant-client>=1.12
+
+# ---- PDF (Phase 7) ----
+pymupdf>=1.25
+pypdf>=5.1
+
+# ---- Tracking / registry (Phase 1-4) ----
+mlflow>=3.1,<4
+scikit-learn>=1.6
+
+# ---- Eval (Phase 1) ----
+numpy>=1.26
+scipy>=1.14
+pandas>=2.2
+
+# ---- HTTP ----
+httpx>=0.28
+tenacity>=9.0
+
+# ---- API (Phase 4) ----
+fastapi>=0.115
+uvicorn[standard]>=0.34
+pydantic>=2.10
+pydantic-settings>=2.7
+python-multipart>=0.0.20
+sse-starlette>=2.2
+
+# ---- Observability (Phase 5) ----
+prometheus-client>=0.21
+opentelemetry-api>=1.29
+opentelemetry-sdk>=1.29
+opentelemetry-exporter-otlp-proto-grpc>=1.29
+opentelemetry-instrumentation-fastapi>=0.50b0
+opentelemetry-instrumentation-httpx>=0.50b0
+opentelemetry-instrumentation-celery>=0.50b0
+structlog>=24.4
+
+# ---- Async (Phase 6) ----
+celery[redis]>=5.4
+redis>=5.2
+flower>=2.0
+
+# ---- UI ----
+streamlit>=1.41
+
+# ---- Utils ----
+python-dotenv>=1.0
+rich>=13.9
+typer>=0.15
+matplotlib>=3.9
