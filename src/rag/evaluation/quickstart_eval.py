@@ -73,7 +73,7 @@ class OpenRouter:
 os.environ['OPENROUTER_API_KEY'] = Config.OPENROUTER_API_KEY
 os.environ.pop('OPENAI_API_KEY', None)
 # Free tier của OpenRouter bị rate-limit upstream khi gọi song song nhiều judge
-os.environ.setdefault('MLFLOW_GENAI_EVAL_MAX_WORKERS', '2')
+os.environ.setdefault('MLFLOW_GENAI_EVAL_MAX_WORKERS', '1')
 
 # Model URI cho mọi judge/scorer của MLflow: "<provider>:/<model-name>"
 JUDGE_MODEL_URI = f"openrouter:/{Config.JUDGE_MODEL}"
@@ -81,7 +81,7 @@ JUDGE_PARAMS = {"max_tokens": Config.JUDGE_MAX_TOKENS, "thinking": False}
 
 # MLflow setup
 mlflow.set_tracking_uri("sqlite:///mlflow.db")
-mlflow.set_experiment('Evaluation Quickstart')
+mlflow.set_experiment('Evaluation Quickstart Version 2')
 
 # Khởi tạo client
 client = OpenRouter(
@@ -96,7 +96,7 @@ def my_agent(question: str) -> str:
     messages = [
          {
                 "role": "system",
-                "content": "You are a helpful assistant. Answer questions concisely.",
+                "content": "You are a helpful assistant. Answer questions concisely and shortly under 20 words.",
         },
         {"role": "user", "content": question},
     ]
@@ -109,6 +109,11 @@ def my_agent(question: str) -> str:
             client.create_chat(messages, model=Config.MODEL)
         )
 
+        print(f"📝 Response keys: {response.keys() if isinstance(response, dict) else type(response)}")
+        if isinstance(response, dict) and 'error' in response:
+            print(f"❌ Error: {response['error']}")
+
+    
         return response['choices'][0]['message']['content']
     finally:
         loop.close()
@@ -165,7 +170,7 @@ faithfulness_judge = make_judge(
     # base_url/extra_headers KHÔNG cần: provider "openrouter" đã có sẵn endpoint
     # https://openrouter.ai/api/v1/chat/completions và tự đọc OPENROUTER_API_KEY.
     model=JUDGE_MODEL_URI,
-    inference_params=JUDGE_PARAMS,
+    inference_params=JUDGE_PARAMS,  
     feedback_value_type=float # Giá trị trả về là float
 )
 
@@ -205,9 +210,8 @@ is_english_judge = make_judge(
 
 
 scorers = [
-    # correctness_judge,
-    # is_english_judge,
-    # is_concise,
+    correctness_judge,
+    is_concise,
     faithfulness_judge,
 ]
 
