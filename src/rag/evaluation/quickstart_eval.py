@@ -1,0 +1,164 @@
+import mlflow
+import os
+from dataclasses import dataclass
+from typing import List, Dict, Any
+import requests
+import asyncio
+from src.config import Config
+import sys
+
+from typing import Literal
+
+# # Kiểm tra API key
+# if not Config.verify_api_key():
+#     sys.exit("Error: OPENROUTER_API_KEY không hợp lệ hoặc chưa cấu hình")
+
+@dataclass
+class OpenRouter:
+    api_base: str
+    api_key: str
+    max_retries: int = 3
+    max_timeout: int = 30
+
+    async def create_chat(self, messages: List[Dict[str, Any]], model: str = "openai/gpt-3.5-turbo" , max_tokens : int = 128):
+        """Tạo chat với OpenRouter API"""
+        url = f"{self.api_base}/chat/completions"
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": model,
+            "messages": messages,
+            'max_tokens' : max_tokens,
+            'thinking' : False
+        }
+        
+        try:
+            response = await asyncio.wait_for(
+                asyncio.to_thread(
+                    requests.post,
+                    url=url,
+                    headers=headers,
+                    json=payload,
+                    timeout=self.max_timeout
+                ),
+                timeout=self.max_timeout
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                raise Exception(f"API Error: {response.status_code} - {response.text}")
+                
+        except Exception as e:
+            raise Exception(f"Request failed: {str(e)}")
+
+# Set environment
+os.environ['OPENROUTER_API_KEY'] = Config.OPENROUTER_API_KEY
+
+# MLflow setup
+mlflow.set_tracking_uri("sqlite:///mlflow.db")
+mlflow.set_experiment('Evaluation Quickstart')
+
+# Khởi tạo client
+client = OpenRouter(
+    api_base=Config.OPENROUTER_BASE_URL,
+    api_key=Config.OPENROUTER_API_KEY,
+    max_retries=3,
+    max_timeout=30
+)
+
+def my_agent(question: str) -> str:
+    """Agent đơn giản để trả lời câu hỏi"""
+    messages = [
+         {
+                "role": "system",
+                "content": "You are a helpful assistant. Answer questions concisely.",
+        },
+        {"role": "user", "content": question},
+    ]
+    
+    # Chạy async trong sync function
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        response = loop.run_until_complete(
+            client.create_chat(messages, model=Config.MODEL)
+        )
+
+        return response['choices'][0]['message']['content']
+    finally:
+        loop.close()
+
+
+def qa_predict_fn(question: str) -> str:
+    """Wrapper function for evaluation using ``my_agent``."""
+    return my_agent(question)
+
+
+eval_dataset = [
+    {
+        "inputs": {"question": "What is the capital of France?"},
+        "expectations": {"expected_response": "Paris"},
+    },
+    {
+        "inputs": {"question": "Who was the first person to build an airplane?"},
+        "expectations": {"expected_response": "Wright Brothers"},
+    },
+    {
+        "inputs": {"question": "Who wrote Romeo and Juliet?"},
+        "expectations": {"expected_response": "William Shakespeare"},
+    },
+]
+
+from mlflow.genai import scorer
+from mlflow.genai.scorers import Correctness, Guidelines 
+from mlflow.genai.judges import make_judge
+
+# Evaluation with Custom Code-based Metrics
+@scorer
+def is_concise(outputs: str) -> bool:
+    """Evaluate if the answer is concise (less than 5 words)"""
+    return len(outputs.split()) <= 5
+    
+
+
+faithfulness_judge = make_judge(
+    name="faithfulness",
+    instructions=(
+        "You are an expert evaluator. Assess the faithfulness of the agent's response. "
+        "An answer is faithful if it is fully grounded in the provided context and does not introduce any hallucinated information. "
+        "Use the following inputs for evaluation: "
+        "Question: {{ inputs['question'] }}, "
+        "Agent's Answer: {{ outputs }}, "
+        "Expected Answer (Ground Truth): {{ expectations['expected_response'] }}. "
+        "Rate the faithfulness on a scale from 0.0 to 1.0, where 1.0 is completely faithful and 0.0 is completely unfaithful."
+    ),
+    model=f"openrouter:/{Config.MODEL}",
+    base_url = Config.OPENROUTER_BASE_URL,
+    extra_headers = {
+            "Authorization": f"Bearer {Config.OPENROUTER_API_KEY}",
+            "Content-Type": "application/json"
+        },
+    feedback_value_type=float # Giá trị trả về là float
+)
+
+
+scorers = [
+    Correctness(),
+    Guidelines(name="is_english", guidelines="The answer must be in English"),
+    is_concise,
+    faithfulness_judge
+]
+
+
+if __name__ == "__main__":
+    results = mlflow.genai.evaluate(
+        data=eval_dataset,
+        predict_fn=qa_predict_fn,
+        scorers=scorers,
+    )
+    print(results)
