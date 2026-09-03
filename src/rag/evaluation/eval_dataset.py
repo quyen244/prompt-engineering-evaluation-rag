@@ -11,44 +11,31 @@ class EvalDataset:
         """Tạo bộ câu hỏi - đáp án mẫu từ documents"""
         
         # Đây là dataset mẫu, bạn nên thu thập từ người dùng thực tế
-        questions = [
+        eval_dataset = [
             {
-                "question": "What is Artificial Intelligence?",
-                "expected_answer": "AI is the simulation of human intelligence processes by computer systems.",
-                "context": "Artificial Intelligence (AI) is the simulation of human intelligence processes by computer systems. These processes include learning, reasoning, and self-correction."
+                "inputs": {"question": "What is the capital of France?"},
+                "expectations": {"expected_response": "Paris"},
             },
             {
-                "question": "What is Machine Learning?",
-                "expected_answer": "Machine Learning is a subset of AI that enables systems to learn from experience without being explicitly programmed.",
-                "context": "Machine Learning is a subset of AI that enables systems to learn and improve from experience without being explicitly programmed. It focuses on the development of computer programs that can access data and use it to learn for themselves."
+                "inputs": {"question": "Who was the first person to build an airplane?"},
+                "expectations": {"expected_response": "Wright Brothers"},
             },
             {
-                "question": "What is Deep Learning?",
-                "expected_answer": "Deep Learning is a specialized branch of machine learning that uses neural networks with multiple layers.",
-                "context": "Deep Learning is a specialized branch of machine learning that uses neural networks with multiple layers. These neural networks attempt to simulate the behavior of the human brain, allowing it to learn from large amounts of data."
+                "inputs": {"question": "Who wrote Romeo and Juliet?"},
+                "expectations": {"expected_response": "William Shakespeare"},
             },
-            {
-                "question": "What is Natural Language Processing?",
-                "expected_answer": "NLP is an area of AI that deals with the interaction between computers and humans using natural language.",
-                "context": "Natural Language Processing (NLP) is another important area of AI that deals with the interaction between computers and humans using natural language. The ultimate goal of NLP is to read, decipher, understand, and make sense of human languages."
-            },
-            {
-                "question": "What is Computer Vision?",
-                "expected_answer": "Computer Vision is a field of AI that trains computers to interpret and understand the visual world.",
-                "context": "Computer Vision is a field of AI that trains computers to interpret and understand the visual world. Using digital images from cameras and videos, deep learning models can accurately identify and classify objects."
-            }
         ]
-        
+            
         # Lưu dataset
         eval_dir = Path("eval_data")
         eval_dir.mkdir(exist_ok=True)
         
         file_path = eval_dir / "qa_dataset.json"
         with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(questions, f, indent=2, ensure_ascii=False)
+            json.dump(eval_dataset, f, indent=2, ensure_ascii=False)
         
         print(f"✅ Created evaluation dataset: {file_path}")
-        return questions
+        return eval_dataset
     
     @staticmethod
     def load_qa_dataset() -> List[Dict]:
