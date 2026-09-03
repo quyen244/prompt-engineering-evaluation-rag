@@ -75,6 +75,7 @@ matplotlib>=3.9
 tqdm
 
 
-# optimization 
+# optimization
 
 gepa>=0.0.26
+litellm>=1.99

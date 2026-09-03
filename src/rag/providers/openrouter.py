@@ -79,15 +79,26 @@ client = OpenRouter(
 )
 
 
-def my_agent(question: str) -> str:
+def my_agent(question: str, prompt_template : str = None) -> str:
     """Agent đơn giản để trả lời câu hỏi"""
-    messages = [
-         {
+
+    if prompt_template:
+        messages = [
+             {
+            "role": "system",
+            "content": "You are a helpful assistant. Answer questions concisely and shortly",
+            },
+            {"role": "user", "content": prompt_template}
+        ]
+    else:
+        # Default prompt (fallback)
+        messages = [
+            {
                 "role": "system",
                 "content": "You are a helpful assistant. Answer questions concisely and shortly under 20 words.",
-        },
-        {"role": "user", "content": question},
-    ]
+            },
+            {"role": "user", "content": question},
+        ]
     
     # Chạy async trong sync function
     loop = asyncio.new_event_loop()
