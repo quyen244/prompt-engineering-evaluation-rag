@@ -66,6 +66,14 @@ class OpenRouter:
                     raise Exception(f"Request failed: {last_error}") from e
                 await asyncio.sleep(2 ** attempt)
 
+            except requests.exceptions.ConnectionError as e:
+                # Bao gồm ConnectionResetError(10054): OpenRouter/Windows đôi khi
+                # đóng kết nối giữa chừng -> retry thay vì làm hỏng cả run.
+                last_error = f"Connection error: {e}"
+                if attempt == self.max_retries - 1:
+                    raise Exception(f"Request failed: {last_error}") from e
+                await asyncio.sleep(2 ** attempt)
+
         raise Exception(f"Request failed: {last_error}")
 
 
@@ -83,13 +91,7 @@ def my_agent(question: str, prompt_template : str = None) -> str:
     """Agent đơn giản để trả lời câu hỏi"""
 
     if prompt_template:
-        messages = [
-             {
-            "role": "system",
-            "content": "You are a helpful assistant. Answer questions concisely and shortly",
-            },
-            {"role": "user", "content": prompt_template}
-        ]
+        messages = [{"role": "user", "content": prompt_template}]
     else:
         # Default prompt (fallback)
         messages = [
@@ -108,7 +110,6 @@ def my_agent(question: str, prompt_template : str = None) -> str:
             client.create_chat(messages, model=Config.MODEL)
         )
 
-        print(f"📝 Response keys: {response.keys() if isinstance(response, dict) else type(response)}")
         if isinstance(response, dict):
             print(f"📝 Response keys: {response.keys()}")
             

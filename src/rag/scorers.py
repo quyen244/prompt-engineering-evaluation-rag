@@ -1,3 +1,5 @@
+import re
+
 import mlflow
 from mlflow.genai.judges import make_judge
 from mlflow.genai import scorer
@@ -13,7 +15,41 @@ def is_concise(outputs: str) -> bool:
     if not outputs:
         return False
     return len(outputs.split()) <= 5
-    
+
+
+# Nhãn hợp lệ cho bài toán phân loại section của medical_section_classifier.
+CLASSIFICATION_LABELS = ["BACKGROUND", "OBJECTIVE", "METHODS", "RESULTS", "CONCLUSIONS"]
+
+
+def _normalize_label(text: str) -> str | None:
+    """Trích nhãn từ text tự do của LLM (markdown, dấu câu, câu văn thừa...).
+
+    Chấp nhận "BACKGROUND", "**BACKGROUND**", "BACKGROUND...", hoặc
+    "The answer is BACKGROUND." Nếu văn bản nhắc tới nhiều hơn một nhãn
+    (mơ hồ) hoặc không nhắc tới nhãn nào, trả về None (= sai).
+    """
+    if not text:
+        return None
+    cleaned = re.sub(r"[*_`]", "", text).upper()
+    found = {label for label in CLASSIFICATION_LABELS if re.search(rf"\b{label}\b", cleaned)}
+    return found.pop() if len(found) == 1 else None
+
+
+# Bài toán phân loại có đáp án đúng/sai rõ ràng (1 trong 5 nhãn cố định),
+# nên dùng code-based scorer thay vì LLM-as-judge: tín hiệu chính xác 100%,
+# không tốn thêm lệnh gọi OpenRouter, và không bị nhiễu bởi cách judge diễn
+# giải "matches in meaning".
+@scorer
+def classification_accuracy(outputs: str, expectations: dict) -> bool:
+    """Đúng khi nhãn model trả về (sau khi chuẩn hoá) khớp nhãn kỳ vọng."""
+    predicted = _normalize_label(outputs)
+    expected = _normalize_label(expectations.get("expected_response", ""))
+    correct = predicted is not None and predicted == expected
+    print(
+        f"[SCORE] predicted={predicted!r} expected={expected!r} "
+        f"correct={correct} raw_output={outputs!r}"
+    )
+    return correct
 
 
 faithfulness_judge = make_judge(

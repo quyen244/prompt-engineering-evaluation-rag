@@ -5,6 +5,7 @@ from pathlib import Path
 
 import mlflow
 from mlflow.exceptions import MlflowException
+from mlflow.entities import Feedback
 from mlflow.genai.datasets import create_dataset, get_dataset
 from mlflow.genai.optimize import GepaPromptOptimizer
 from mlflow.tracking import MlflowClient
@@ -134,7 +135,30 @@ def _predict_for_uri(prompt_uri: str):
 def _score_from_metrics(metrics):
     correctness = metrics.get("correctness/mean", metrics.get("correctness", 0.0))
     safety = metrics.get("safety/mean", metrics.get("safety", 0.0))
-    return 0.7 * float(correctness) + 0.3 * float(safety)
+    return _weighted_score({"correctness": correctness, "safety": safety})
+
+
+def _numeric_score(score) -> float:
+    """Convert MLflow judge feedback or primitive scorer output to [0, 1]."""
+    if isinstance(score, Feedback):
+        score = score.value
+    if hasattr(score, "value") and not isinstance(score, (str, bytes)):
+        score = score.value
+    if isinstance(score, bool):
+        return float(score)
+    if isinstance(score, (int, float)):
+        return float(score)
+    if isinstance(score, str):
+        normalized = score.strip().lower()
+        if normalized in {"yes", "true"}:
+            return 1.0
+        if normalized in {"no", "false"}:
+            return 0.0
+    raise TypeError(f"Scorer returned unsupported value: {score!r}")
+
+
+def _weighted_score(scores) -> float:
+    return 0.7 * _numeric_score(scores["correctness"]) + 0.3 * _numeric_score(scores["safety"])
 
 
 def evaluate_prompt(prompt_uri: str, dataset):
@@ -181,14 +205,19 @@ def main():
                     display_progress_bar=True
                 ),
                 scorers=SCORERS,
-                aggregation=lambda scores: 0.7 * float(scores["correctness"]) + 0.3 * float(scores["safety"]),
+                aggregation=_weighted_score,
                 enable_tracking=True
             )
             if not result.optimized_prompts:
                 raise RuntimeError("GEPA returned no optimized prompt")
 
             optimized_prompt = result.optimized_prompts[0]
+            # GEPA scores candidates on a fixed rollout. Keep those scores as
+            # the optimization comparison; a second evaluation is stochastic
+            # and is reported separately as an independent check.
             optimized_score, _ = evaluate_prompt(optimized_prompt.uri, train_dataset)
+            gepa_baseline_score = result.initial_eval_score
+            gepa_optimized_score = result.final_eval_score
             prompt_changed = prompt.template != optimized_prompt.template
             diff = "".join(difflib.unified_diff(
                 prompt.template.splitlines(True),
@@ -200,9 +229,11 @@ def main():
             print("\n[Step 5] Results")
             print(f"Original prompt: {prompt.uri}")
             print(f"Optimized prompt: {optimized_prompt.uri}")
-            print(f"Baseline score: {baseline_score:.4f}")
-            print(f"Optimized score: {optimized_score:.4f}")
-            print(f"Improvement: {optimized_score - baseline_score:+.4f}")
+            print(f"Baseline score (independent eval): {baseline_score:.4f}")
+            print(f"Optimized score (independent eval): {optimized_score:.4f}")
+            print(f"GEPA baseline score: {gepa_baseline_score:.4f}")
+            print(f"GEPA optimized score: {gepa_optimized_score:.4f}")
+            print(f"GEPA improvement: {gepa_optimized_score - gepa_baseline_score:+.4f}")
             print(f"Prompt changed: {'YES' if prompt_changed else 'NO'}")
             print("\nPrompt diff:\n" + (diff or "(no textual difference)"))
 
