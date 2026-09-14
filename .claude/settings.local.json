@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./venv_311/Scripts/python.exe --version)",
+      "Bash(./venv_311/Scripts/python.exe -m pip list)",
+      "Bash(./venv/Scripts/python.exe --version)",
+      "Bash(py --list)",
+      "Bash(where python *)",
+      "Bash(cd *)"
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
