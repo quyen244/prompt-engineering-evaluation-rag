@@ -9,13 +9,14 @@
 # LƯU Ý: cài torch CPU-only TRƯỚC. Nếu để pip tự giải, nó kéo bản CUDA ~2.5GB
 # mà máy bạn không dùng đến.
 
-# ---- Core RAG ----
-llama-index-core>=0.12,<0.15
-llama-index-readers-file>=0.4
-llama-index-llms-openrouter>=0.3
-llama-index-embeddings-huggingface>=0.5
-llama-index-vector-stores-qdrant>=0.6
-llama-index-retrievers-bm25>=0.5
+# ---- Core RAG (LangChain) ----
+langchain>=0.3,<1
+langchain-core>=0.3,<1
+langchain-community>=0.3,<1
+langchain-text-splitters>=0.3,<1
+langchain-openai>=0.3,<1
+langchain-huggingface>=0.1,<1
+rank-bm25>=0.2
 
 # ---- Embedding local (Phase 0) ----
 sentence-transformers>=3.3
