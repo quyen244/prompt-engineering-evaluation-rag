@@ -76,6 +76,16 @@ python practice/00_setup/03_embedding_compare.py
 
 ---
 
+## Evaluation harness nguồn thật
+
+Harness reproducible với 20 case từ source project, 30 mẫu SQuAD Hugging Face cho
+improvement và 30 mẫu holdout riêng cho validation nằm tại
+[`docs/evaluation_harness.md`](docs/evaluation_harness.md). Dữ liệu Hugging Face không
+được commit; manifest ghim revision, provenance và hash từng row, và chạy sẽ fail rõ
+ràng nếu nguồn thật không tải được.
+
+---
+
 ## Chạy hệ thống hiện tại
 
 ```powershell
