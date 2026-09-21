@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from src.rag.config import PipelineConfig
+from src.rag.evaluation import EvaluationRecord
+from src.rag.generation import GroundedPrompt, LangChainGenerator
 from src.rag.models import SourceDocument
 from src.rag.pipeline import RAGPipeline
 from src.rag.retrieval import BM25Retriever
@@ -28,6 +30,26 @@ class RecordingGenerator:
     def generate(self, question, sources):
         self.sources = tuple(sources)
         return "answer from retrieved context"
+
+
+class RecordingRunnable:
+    def __init__(self):
+        self.inputs = None
+
+    def invoke(self, inputs):
+        self.inputs = inputs
+        return "runnable answer"
+
+
+class FixedRetriever:
+    def retrieve(self, query, *, k=None):
+        from src.rag.models import RetrievedSource
+
+        return [
+            RetrievedSource(
+                "persisted", "persisted source", 1.0, {"source": "qdrant"}
+            )
+        ]
 
 
 def test_configuration_isolation():
@@ -75,3 +97,49 @@ def test_bm25_does_not_fabricate_sources():
     assert results[0].text == "only source text"
     assert results[0].metadata["source"] == "real.md"
     assert all(result.chunk_id == "known" for result in results)
+
+
+def test_prompt_and_runnable_are_independent_boundaries():
+    runnable = RecordingRunnable()
+    generator = LangChainGenerator(
+        "test-model",
+        "test-key",
+        "https://example.invalid/v1",
+        prompt=GroundedPrompt(),
+        runnable=runnable,
+    )
+    from src.rag.models import RetrievedSource
+
+    source = [RetrievedSource("c1", "known context", 1.0, {"source": "real.md"})]
+    assert generator.generate("What?", source) == "runnable answer"
+    assert runnable.inputs == {
+        "question": "What?",
+        "context": "[source:c1] known context",
+        "system_message": GroundedPrompt().system_message,
+    }
+
+
+def test_injected_retriever_remains_the_retriever_boundary():
+    generator = RecordingGenerator()
+    pipeline = RAGPipeline(
+        PipelineConfig(retrieval_k=1),
+        embedder=FakeEmbedder(),
+        generator=generator,
+        retriever=FixedRetriever(),
+        splitter=IdentitySplitter(),
+    )
+    pipeline.ingest_documents([SourceDocument("local copy", {"source": "local.md"})])
+    assert pipeline.query("anything").sources[0].metadata["source"] == "qdrant"
+
+
+def test_evaluation_record_preserves_answer_sources():
+    from src.rag.models import Answer, RetrievedSource
+
+    record = EvaluationRecord.from_answer(
+        "Where?",
+        Answer(
+            "there",
+            (RetrievedSource("c1", "source text", 0.9, {"source": "real.md"}, "dense"),),
+        ),
+    )
+    assert record.as_mapping()["sources"][0]["metadata"] == {"source": "real.md"}

@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Mapping, Sequence
 
 from .config import PipelineConfig
 from .generation import LangChainGenerator
 from .ingestion import IngestionPipeline
 from .models import Answer, Chunk, RetrievedSource, SourceDocument
-from .protocols import Embedder, Generator, Reranker, Retriever
+from .protocols import Embedder, Evaluator, Generator, Reranker, Retriever
 from .retrieval import BM25Retriever, DenseRetriever, RRFHybridRetriever
 from .splitting import LangChainSplitter
 
@@ -38,6 +38,7 @@ class RAGPipeline:
         self.reranker = reranker
         self.splitter = splitter or LangChainSplitter(config)
         self.retriever = retriever
+        self._injected_retriever = retriever
         self._artifact: IngestionArtifact | None = None
 
     @property
@@ -48,9 +49,10 @@ class RAGPipeline:
         chunks = tuple(self.splitter.split(documents))
         if not chunks:
             raise ValueError("ingestion produced no non-empty chunks")
-        dense = DenseRetriever(chunks, self.embedder)
-        sparse = BM25Retriever(chunks)
-        self.retriever = RRFHybridRetriever((dense, sparse), self.config.rrf_k)
+        if self._injected_retriever is None:
+            dense = DenseRetriever(chunks, self.embedder)
+            sparse = BM25Retriever(chunks)
+            self.retriever = RRFHybridRetriever((dense, sparse), self.config.rrf_k)
         self._artifact = IngestionArtifact(tuple(documents), chunks)
         return self._artifact
 
@@ -71,6 +73,12 @@ class RAGPipeline:
             raise ValueError("question cannot be empty")
         sources = self.retrieve(question, k=k)
         return Answer(text=self.generator.generate(question, sources), sources=tuple(sources))
+
+    def evaluate(
+        self, question: str, evaluator: Evaluator, *, k: int | None = None
+    ) -> Mapping[str, object]:
+        """Run an injected evaluator against a real pipeline answer."""
+        return evaluator.evaluate(question, self.query(question, k=k))
 
 
 def create_openrouter_pipeline(

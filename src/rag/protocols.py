@@ -1,9 +1,9 @@
 """Small protocols that keep providers and evaluation independently testable."""
 from __future__ import annotations
 
-from typing import Protocol, Sequence, runtime_checkable
+from typing import Mapping, Protocol, Sequence, runtime_checkable
 
-from .models import Chunk, RetrievedSource, SourceDocument
+from .models import Answer, Chunk, RetrievedSource, SourceDocument
 
 
 @runtime_checkable
@@ -25,6 +25,13 @@ class Reranker(Protocol):
 @runtime_checkable
 class Generator(Protocol):
     def generate(self, question: str, sources: Sequence[RetrievedSource]) -> str: ...
+
+
+@runtime_checkable
+class Evaluator(Protocol):
+    """Evaluation adapter boundary; implementations own metric semantics."""
+
+    def evaluate(self, question: str, answer: Answer) -> Mapping[str, object]: ...
 
 
 @runtime_checkable
