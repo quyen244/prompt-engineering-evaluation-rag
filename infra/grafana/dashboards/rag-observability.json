@@ -1,0 +1,21 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "schemaVersion": 39,
+  "title": "RAG observability contracts",
+  "tags": ["rag", "telemetry-as-code"],
+  "timezone": "utc",
+  "refresh": "30s",
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "p50 latency by stage", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}, "targets": [{"expr": "histogram_quantile(0.50, sum(rate(rag_query_duration_seconds_bucket[5m])) by (le, stage))", "legendFormat": "{{stage}}"}]},
+    {"id": 2, "type": "timeseries", "title": "p95 latency by stage", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}, "targets": [{"expr": "histogram_quantile(0.95, sum(rate(rag_query_duration_seconds_bucket[5m])) by (le, stage))", "legendFormat": "{{stage}}"}]},
+    {"id": 3, "type": "timeseries", "title": "Error rate", "gridPos": {"h": 8, "w": 8, "x": 0, "y": 8}, "targets": [{"expr": "sum(rate(rag_errors_total[5m])) by (stage, error_type)", "legendFormat": "{{stage}} / {{error_type}}"}]},
+    {"id": 4, "type": "timeseries", "title": "Tokens per minute", "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8}, "targets": [{"expr": "sum(rate(llm_tokens_total[5m])) * 60", "legendFormat": "{{token_type}} / {{model}}"}]},
+    {"id": 5, "type": "timeseries", "title": "LLM spend per hour", "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8}, "targets": [{"expr": "sum(rate(llm_cost_usd_total[15m])) * 3600", "legendFormat": "USD/hour"}]},
+    {"id": 6, "type": "heatmap", "title": "Retrieval top-score distribution", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}, "targets": [{"expr": "sum(rate(rag_retrieval_top_score_bucket[10m])) by (le, retrieval_strategy)", "legendFormat": "{{retrieval_strategy}}"}]},
+    {"id": 7, "type": "timeseries", "title": "No-answer rate", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}, "targets": [{"expr": "sum(rate(rag_no_answer_total[10m])) / clamp_min(sum(rate(rag_query_duration_seconds_count[10m])), 1)", "legendFormat": "no-answer"}]}
+  ],
+  "links": [{"title": "Open traces", "type": "link", "url": "explore?orgId=1&left=%5B%5B%22tempo%22%2C%22%7B%7B__value.time%7D%7D%22%5D%5D"}],
+  "templating": {"list": []},
+  "version": 1
+}

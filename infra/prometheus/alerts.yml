@@ -1,0 +1,35 @@
+groups:
+  - name: rag-safety
+    rules:
+      - alert: RAGHighErrorRate
+        expr: sum(rate(rag_errors_total[10m])) / clamp_min(sum(rate(rag_query_duration_seconds_count[10m])), 1) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: RAG error rate is elevated
+          description: Investigate the correlated trace and redacted JSON event; do not use this alert as a quality score.
+      - alert: LLMCostSpike
+        expr: sum(rate(llm_cost_usd_total[15m])) * 3600 > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: LLM spend rate is elevated
+          description: Check context token growth and retrieval strategy before changing model settings.
+      - alert: ContextTokensGrowing
+        expr: histogram_quantile(0.95, sum(rate(rag_context_tokens_bucket[1h])) by (le)) > 4000
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: Retrieved context is growing
+          description: Review top-k and reranking configuration; no fabricated quality value is emitted.
+      - alert: TelemetrySignalsDropped
+        expr: increase(telemetry_dropped_signals_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: Telemetry signals were dropped
+          description: Product traffic remains fail-open; inspect exporter and history sink health.
