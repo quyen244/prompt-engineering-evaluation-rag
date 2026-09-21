@@ -33,6 +33,10 @@ design_patterns.md
 # Dữ liệu nguồn (bỏ dòng này nếu muốn commit tài liệu mẫu)
 data/
 
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+
 # Output sinh ra
 artifacts/*.png
 artifacts/*.json
