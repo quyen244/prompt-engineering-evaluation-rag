@@ -28,3 +28,24 @@ result = mlflow.genai.optimize_prompts(
     scorers=[custom_scorer],            # Tùy chọn
     enable_tracking=True
 )
+```
+
+## RAG lineage adapter
+
+The production-facing adapter is `src/rag/optimization/gepa_adapter.py`. It
+accepts a LangChain `Runnable` and frozen `RetrievalSnapshot` values, so GEPA
+can vary only the prompt while every candidate sees identical retrieved
+context. `freeze_retrieval()` must run before optimization; candidate outputs
+are retained in the append-only `OptimizationLedger` and can be logged as
+per-case artifacts.
+
+`src/rag/lineage.py` builds a content-addressed immutable manifest containing
+retrieval strategy (BM25, reranker, hybrid), prompt version/digest, model,
+dataset, budget, rollback, and run metadata. Prompt aliases are separate movable records.
+Promotion requires a real non-empty held-out dataset, frozen retrieval,
+recorded candidates, per-case artifacts, and an observed candidate score above
+the baseline. Missing evidence raises `PromotionRefused`; no score is
+fabricated.
+
+The adapter and manifest modules are importable offline. Running tracked
+optimization additionally requires the dependencies in `requirements/base.txt`.
