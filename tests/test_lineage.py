@@ -2,16 +2,20 @@ import pytest
 
 from src.rag.lineage import (
     BudgetMetadata,
+    CaseArtifactLink,
     DatasetIdentity,
     ModelIdentity,
     PromptVariableError,
     PromptVersion,
+    PromotionApproval,
     PromotionEvidence,
     PromotionRefused,
     RetrievalIdentity,
     build_manifest,
     digest,
     require_promotion,
+    require_approved_promotion,
+    RunContract,
 )
 
 
@@ -32,7 +36,7 @@ def test_manifest_identity_changes_with_prompt_and_is_content_addressed():
     assert first.identity == first.manifest_digest
     assert first.identity == _manifest().identity
     assert first.identity != second.identity
-    with pytest.raises(TypeError):
+    with pytest.raises((AttributeError, TypeError)):
         first.retrieval.strategy = "bm25"
 
 
@@ -75,3 +79,37 @@ def test_promotion_does_not_claim_improvement_without_real_data():
     )
     with pytest.raises(PromotionRefused, match="real_dataset"):
         require_promotion(evidence)
+
+
+def test_run_contract_is_content_addressed_and_requires_train_heldout_separation():
+    manifest = _manifest()
+    train = DatasetIdentity("qa", digest(["train-a"]), "train", 1)
+    heldout = DatasetIdentity("qa", digest(["heldout-a"]), "heldout", 1)
+    contract = RunContract(manifest, train, heldout, reflection_model=ModelIdentity("openrouter", "judge"),
+                           retrieval_snapshot_digest="snap-1")
+    assert contract.identity == contract.contract_digest
+    assert contract.to_dict()["reflection_model"]["name"] == "judge"
+    with pytest.raises(ValueError, match="distinct immutable split identities"):
+        RunContract(manifest, train, train)
+
+
+def test_successful_promotion_still_requires_explicit_approval():
+    evidence = PromotionEvidence(
+        baseline_score=0.5,
+        candidate_score=0.8,
+        heldout_case_count=2,
+        heldout_evaluated=True,
+        retrieval_frozen=True,
+        candidates_recorded=True,
+        real_data=True,
+        dataset_digest="real-digest",
+        candidate_run_id="run-1",
+        per_case_artifacts=(CaseArtifactLink("case-1", "heldout", "run-1", "case.json", "result"),),
+    )
+    with pytest.raises(PromotionRefused, match="approval"):
+        require_approved_promotion(evidence, None)
+    decision = require_approved_promotion(
+        evidence,
+        PromotionApproval("reviewer", "held-out evidence reviewed", "ticket-123"),
+    )
+    assert decision.eligible

@@ -107,6 +107,11 @@ class PromptVersion:
     def digest(self) -> str:
         return self.template_digest
 
+    @property
+    def identity(self) -> str:
+        """Content identity for callers that cannot safely use a mutable alias."""
+        return digest(self.to_dict())
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
@@ -156,6 +161,10 @@ class ModelIdentity:
     def to_dict(self) -> dict[str, Any]:
         return {"provider": self.provider, "name": self.name, "version": self.version, "parameters": dict(self.parameters)}
 
+    @property
+    def identity(self) -> str:
+        return digest(self.to_dict())
+
 
 @dataclass(frozen=True)
 class DatasetIdentity:
@@ -170,6 +179,10 @@ class DatasetIdentity:
 
     def to_dict(self) -> dict[str, Any]:
         return {"name": self.name, "dataset_digest": self.dataset_digest, "split": self.split, "case_count": self.case_count}
+
+    @property
+    def identity(self) -> str:
+        return digest(self.to_dict())
 
 
 @dataclass(frozen=True)
@@ -236,6 +249,8 @@ class ExperimentManifest:
     git_commit: str = ""
     schema_version: str = "1"
     rollback: RollbackMetadata | None = None
+    evaluation_protocol: str = "heldout-v1"
+    random_seed: int | None = None
     manifest_digest: str = ""
 
     def __post_init__(self) -> None:
@@ -253,6 +268,8 @@ class ExperimentManifest:
         data = {
             "schema_version": self.schema_version,
             "git_commit": self.git_commit,
+            "evaluation_protocol": self.evaluation_protocol,
+            "random_seed": self.random_seed,
             "retrieval": self.retrieval.to_dict(),
             "prompt": self.prompt.to_dict(),
             "model": self.model.to_dict(),
@@ -268,9 +285,83 @@ class ExperimentManifest:
 def build_manifest(*, retrieval: RetrievalIdentity, prompt: PromptVersion, model: ModelIdentity,
                    dataset: DatasetIdentity, budget: BudgetMetadata,
                    git_commit: str = "", rollback: RollbackMetadata | None = None,
+                   evaluation_protocol: str = "heldout-v1", random_seed: int | None = None,
                    schema_version: str = "1") -> ExperimentManifest:
     """Build a stable manifest; changing any component changes its identity."""
-    return ExperimentManifest(retrieval, prompt, model, dataset, budget, git_commit, schema_version, rollback)
+    return ExperimentManifest(
+        retrieval, prompt, model, dataset, budget, git_commit,
+        schema_version, rollback, evaluation_protocol, random_seed,
+    )
+
+
+@dataclass(frozen=True)
+class RunContract:
+    """The reproducible inputs for one optimization or evaluation parent run.
+
+    The contract intentionally identifies retrieval *outputs/configuration* only;
+    it never stores or invokes a retriever implementation.
+    """
+
+    manifest: ExperimentManifest
+    train_dataset: DatasetIdentity
+    heldout_dataset: DatasetIdentity
+    reflection_model: ModelIdentity | None = None
+    retrieval_snapshot_digest: str = ""
+    contract_digest: str = ""
+
+    def __post_init__(self) -> None:
+        if (self.train_dataset.dataset_digest == self.heldout_dataset.dataset_digest
+                and self.train_dataset.split == self.heldout_dataset.split):
+            raise LineageError("train and held-out datasets must have distinct immutable split identities")
+        payload = self.to_dict(include_digest=False)
+        expected = digest(payload)
+        if self.contract_digest and self.contract_digest != expected:
+            raise LineageError("run contract digest does not match its immutable contents")
+        object.__setattr__(self, "contract_digest", expected)
+
+    @property
+    def identity(self) -> str:
+        return self.contract_digest
+
+    def to_dict(self, include_digest: bool = True) -> dict[str, Any]:
+        data = {
+            "manifest": self.manifest.to_dict(),
+            "train_dataset": self.train_dataset.to_dict(),
+            "heldout_dataset": self.heldout_dataset.to_dict(),
+            "reflection_model": self.reflection_model.to_dict() if self.reflection_model else None,
+            "retrieval_snapshot_digest": self.retrieval_snapshot_digest,
+        }
+        if include_digest:
+            data["contract_digest"] = self.contract_digest
+        return data
+
+
+def lineage_tags(manifest: ExperimentManifest, contract: RunContract | None = None) -> dict[str, str]:
+    """Low-cardinality identifiers suitable for MLflow tags.
+
+    Full payloads are artifacts; tags are deliberately limited to stable lookup
+    keys so prompt/model/retrieval lineage is queryable without leaking prompts
+    or per-case data into tag values.
+    """
+    tags = {
+        "lineage.schema_version": manifest.schema_version,
+        "lineage.manifest_digest": manifest.identity,
+        "lineage.prompt_uri": manifest.prompt.uri,
+        "lineage.prompt_digest": manifest.prompt.digest,
+        "lineage.model_identity": manifest.model.identity,
+        "lineage.dataset_digest": manifest.dataset.dataset_digest,
+        "lineage.retrieval_digest": digest(manifest.retrieval.to_dict()),
+        "lineage.evaluation_protocol": manifest.evaluation_protocol,
+    }
+    if contract:
+        tags["lineage.contract_digest"] = contract.identity
+        tags["lineage.train_dataset_digest"] = contract.train_dataset.dataset_digest
+        tags["lineage.heldout_dataset_digest"] = contract.heldout_dataset.dataset_digest
+        if contract.reflection_model:
+            tags["lineage.reflection_model_identity"] = contract.reflection_model.identity
+        if contract.retrieval_snapshot_digest:
+            tags["lineage.retrieval_snapshot_digest"] = contract.retrieval_snapshot_digest
+    return tags
 
 
 @dataclass(frozen=True)
@@ -294,7 +385,8 @@ def child_run_name(candidate_id: str, split: str) -> str:
 
 
 @contextmanager
-def start_parent_run(manifest: ExperimentManifest, *, experiment: str = "rag-lineage"):
+def start_parent_run(manifest: ExperimentManifest, *, experiment: str = "rag-lineage",
+                     contract: RunContract | None = None):
     """Start the one parent run used for a manifest and yield its identity."""
     try:
         import mlflow
@@ -303,7 +395,10 @@ def start_parent_run(manifest: ExperimentManifest, *, experiment: str = "rag-lin
     mlflow.set_experiment(experiment)
     with mlflow.start_run(run_name=parent_run_name(manifest)) as run:
         log_manifest(manifest)
-        mlflow.set_tags({"run_kind": "parent", "manifest_digest": manifest.identity})
+        if contract:
+            log_run_contract(contract)
+        mlflow.set_tags({"run_kind": "parent", "manifest_digest": manifest.identity,
+                         **lineage_tags(manifest, contract)})
         yield RunIdentity(experiment, run.info.run_id, "parent")
 
 
@@ -384,6 +479,36 @@ def require_promotion(evidence: PromotionEvidence) -> PromotionDecision:
     return decision
 
 
+@dataclass(frozen=True)
+class PromotionApproval:
+    """A human approval record required before a mutable prompt alias changes."""
+
+    approved_by: str
+    reason: str
+    approval_reference: str
+
+    def __post_init__(self) -> None:
+        if not self.approved_by or not self.reason or not self.approval_reference:
+            raise LineageError("promotion approval requires approver, reason, and an auditable reference")
+
+    def to_dict(self) -> dict[str, str]:
+        return {f.name: getattr(self, f.name) for f in fields(self)}
+
+
+def require_approved_promotion(evidence: PromotionEvidence,
+                               approval: PromotionApproval | None) -> PromotionDecision:
+    """Enforce the boundary between measured selection and alias promotion.
+
+    GEPA may select a candidate automatically, but no code in this package moves
+    a production alias.  A caller must retain an explicit human approval record
+    before it performs that external, mutable registry operation.
+    """
+    decision = require_promotion(evidence)
+    if approval is None:
+        raise PromotionRefused("promotion approval is required before updating a prompt alias")
+    return decision
+
+
 def log_case_artifact_links(links: Sequence[CaseArtifactLink], *, artifact_path: str = "lineage/case_links.json") -> None:
     try:
         import mlflow
@@ -404,3 +529,13 @@ def log_manifest(manifest: ExperimentManifest, *, artifact_path: str = "lineage/
         raise LineageError("MLflow is required to log experiment lineage; install requirements/base.txt") from exc
     mlflow.log_dict(manifest.to_dict(), artifact_path)
     mlflow.set_tag("manifest_digest", manifest.identity)
+
+
+def log_run_contract(contract: RunContract, *, artifact_path: str = "lineage/run_contract.json") -> None:
+    """Persist reproducibility inputs as an artifact of the active MLflow run."""
+    try:
+        import mlflow
+    except ImportError as exc:
+        raise LineageError("MLflow is required to log a run contract") from exc
+    mlflow.log_dict(contract.to_dict(), artifact_path)
+    mlflow.set_tags(lineage_tags(contract.manifest, contract))

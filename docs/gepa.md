@@ -49,3 +49,49 @@ fabricated.
 
 The adapter and manifest modules are importable offline. Running tracked
 optimization additionally requires the dependencies in `requirements/base.txt`.
+
+## Frozen-RAG experiment contract
+
+The optimization boundary is deliberately narrow:
+
+1. `freeze_retrieval(cases, retrieve)` materializes one immutable
+   `RetrievalSnapshot` per case before GEPA starts.
+2. `GepaLangChainAdapter` accepts only those snapshots and a runnable with
+   `invoke()`. It has no retriever callback, so candidate evaluation cannot
+   silently refresh context.
+3. `frozen_retrieval_contract` records the snapshot count, case IDs, and a
+   content digest. The digest is logged with the candidate ledger and selection
+   record.
+4. `RunContract` binds train and held-out dataset digests, prompt/model
+   identities, evaluation protocol, retrieval snapshot identity, and optional
+   reflection model into one reproducible content-addressed artifact.
+
+Candidate outputs are append-only `CandidateResult` records. Once an observed
+held-out evaluation exists, `record_selection()` emits a signed-by-content
+`GepaSelectionRecord` containing the baseline and selected scores, candidate
+count, and run identity. Its digest is content-addressed and it does not claim
+an improvement when no score was provided.
+
+Selection and promotion are separate boundaries. `require_promotion()` checks
+real held-out evidence, frozen retrieval, candidate records, and per-case
+artifacts. `require_approved_promotion()` additionally requires an explicit
+`PromotionApproval(approved_by, reason, approval_reference)` before an external
+caller moves a mutable MLflow prompt alias. Rollback metadata identifies the
+previous immutable prompt version, alias, run, and reason; no automatic alias
+mutation or retriever change is performed here.
+
+## Validation evidence
+
+The focused tests exercise behavior through the public contracts: immutable
+manifest and run-contract digests, train/held-out separation, frozen retrieval
+call counts, cache behavior, candidate selection records, rejection of empty or
+non-numeric held-out evidence, and the approval boundary. Run them from the
+repository root after installing `requirements/base.txt`:
+
+```sh
+python -m pytest -q tests/test_lineage.py tests/test_gepa_adapter.py
+python -m compileall -q src tests
+```
+
+The tests intentionally do not report quality numbers or fabricate GEPA metrics;
+scores are accepted only from the caller's real scorer.

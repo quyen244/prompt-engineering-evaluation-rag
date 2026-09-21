@@ -62,11 +62,86 @@ class HeldoutValidation:
     case_count: int
     evaluated: bool = True
 
+    def __post_init__(self) -> None:
+        if not self.candidate_id or not self.dataset_digest or self.case_count < 1:
+            raise GepaSetupError("held-out validation requires a candidate, dataset digest, and cases")
+        if not self.evaluated or len(self.scores) != self.case_count:
+            raise GepaSetupError("held-out validation must contain one real score per case")
+        if any(isinstance(score, bool) or not isinstance(score, (int, float)) for score in self.scores):
+            raise GepaSetupError("held-out validation scores must be numeric")
+
     @property
     def mean_score(self) -> float:
         if not self.scores:
             raise GepaSetupError("held-out validation has no scores")
         return sum(self.scores) / len(self.scores)
+
+
+@dataclass(frozen=True)
+class GepaSelectionRecord:
+    """Auditable record of which immutable candidate won a GEPA comparison."""
+
+    selected_candidate_id: str
+    selected_prompt_digest: str
+    baseline_candidate_id: str
+    baseline_score: float
+    selected_score: float
+    dataset_digest: str
+    selection_split: str
+    candidate_count: int
+    retrieval_snapshot_digest: str
+    selection_run_id: str
+    selection_digest: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.selected_candidate_id or not self.selected_prompt_digest:
+            raise GepaSetupError("selection must identify the selected prompt candidate")
+        if not self.baseline_candidate_id or not self.dataset_digest or not self.selection_run_id:
+            raise GepaSetupError("selection must identify baseline, dataset, and run")
+        if self.candidate_count < 1 or not self.selection_split or not self.retrieval_snapshot_digest:
+            raise GepaSetupError("selection must include split, candidate count, and frozen retrieval identity")
+        for score in (self.baseline_score, self.selected_score):
+            if isinstance(score, bool) or not isinstance(score, (int, float)):
+                raise GepaSetupError("selection scores must be numeric observations")
+        payload = self.to_dict(include_digest=False)
+        expected = digest(payload)
+        if self.selection_digest and self.selection_digest != expected:
+            raise GepaSetupError("selection digest does not match its immutable contents")
+        object.__setattr__(self, "selection_digest", expected)
+
+    def to_dict(self, include_digest: bool = True) -> dict[str, Any]:
+        data = {
+            "selected_candidate_id": self.selected_candidate_id,
+            "selected_prompt_digest": self.selected_prompt_digest,
+            "baseline_candidate_id": self.baseline_candidate_id,
+            "baseline_score": self.baseline_score,
+            "selected_score": self.selected_score,
+            "dataset_digest": self.dataset_digest,
+            "selection_split": self.selection_split,
+            "candidate_count": self.candidate_count,
+            "retrieval_snapshot_digest": self.retrieval_snapshot_digest,
+            "selection_run_id": self.selection_run_id,
+        }
+        if include_digest:
+            data["selection_digest"] = self.selection_digest
+        return data
+
+
+@dataclass(frozen=True)
+class FrozenRetrievalContract:
+    """Reproducibility identity for materialized retrieval evidence."""
+
+    snapshot_count: int
+    snapshot_digest: str
+    case_ids: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if self.snapshot_count < 1 or self.snapshot_count != len(self.case_ids) or not self.snapshot_digest:
+            raise GepaSetupError("frozen retrieval contract is incomplete")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"snapshot_count": self.snapshot_count, "snapshot_digest": self.snapshot_digest,
+                "case_ids": list(self.case_ids)}
 
 
 @dataclass(frozen=True)
@@ -245,6 +320,52 @@ class GepaLangChainAdapter:
     def artifact_links(self, run_id: str) -> tuple[CaseArtifactLink, ...]:
         return self.ledger.links(run_id)
 
+    @property
+    def frozen_retrieval_contract(self) -> FrozenRetrievalContract:
+        snapshots = tuple(self._snapshots.values())
+        return FrozenRetrievalContract(
+            snapshot_count=len(snapshots),
+            snapshot_digest=digest([snapshot.to_dict() for snapshot in sorted(snapshots, key=lambda item: item.case_id)]),
+            case_ids=tuple(snapshot.case_id for snapshot in sorted(snapshots, key=lambda item: item.case_id)),
+        )
+
+    def record_selection(self, baseline: HeldoutValidation, selected: HeldoutValidation,
+                         *, selection_run_id: str, selection_split: str = "train") -> GepaSelectionRecord:
+        """Record selection using observed scores; no score is inferred or filled in."""
+        if baseline.dataset_digest != selected.dataset_digest:
+            raise GepaSetupError("baseline and selected candidates must use the same dataset digest")
+        if selected.candidate_id == baseline.candidate_id:
+            raise GepaSetupError("selection must identify a candidate distinct from the baseline")
+        prompt_digest = next((item.prompt_digest for item in self.ledger.records
+                              if item.candidate_id == selected.candidate_id), "")
+        return GepaSelectionRecord(
+            selected_candidate_id=selected.candidate_id,
+            selected_prompt_digest=prompt_digest,
+            baseline_candidate_id=baseline.candidate_id,
+            baseline_score=baseline.mean_score,
+            selected_score=selected.mean_score,
+            dataset_digest=selected.dataset_digest,
+            selection_split=selection_split,
+            candidate_count=len({item.candidate_id for item in self.ledger.records}),
+            retrieval_snapshot_digest=self.frozen_retrieval_contract.snapshot_digest,
+            selection_run_id=selection_run_id,
+        )
+
+    def log_selection(self, selection: GepaSelectionRecord,
+                      *, mlflow_module: Any = None,
+                      artifact_path: str = "lineage/gepa_selection.json") -> None:
+        if mlflow_module is None:
+            try:
+                import mlflow as mlflow_module
+            except ImportError as exc:
+                raise GepaSetupError("MLflow is required to log GEPA selection artifacts") from exc
+        mlflow_module.log_dict(selection.to_dict(), artifact_path)
+        mlflow_module.set_tags({
+            "gepa.selected_candidate_id": selection.selected_candidate_id,
+            "gepa.selection_digest": selection.selection_digest,
+            "gepa.retrieval_snapshot_digest": selection.retrieval_snapshot_digest,
+        })
+
     def log_ledger(self, *, mlflow_module: Any = None, artifact_path: str = "lineage/candidates.jsonl") -> None:
         if mlflow_module is None:
             try:
@@ -254,6 +375,8 @@ class GepaLangChainAdapter:
         mlflow_module.log_text(self.ledger.jsonl(), artifact_path)
         mlflow_module.log_params({
             "retrieval_frozen": True,
+            "retrieval_snapshot_digest": self.frozen_retrieval_contract.snapshot_digest,
+            "retrieval_snapshot_count": self.frozen_retrieval_contract.snapshot_count,
             "metric_calls": self._metric_calls,
             "cache_hits": self._cache.hits,
             "cache_misses": self._cache.misses,
