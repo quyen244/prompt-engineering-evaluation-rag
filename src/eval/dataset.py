@@ -13,6 +13,10 @@ from typing import Any, Iterable, Mapping
 from .schema import EvalCase
 
 
+MANIFEST_SCHEMA_VERSION = 1
+MODE_CASE_COUNTS = {"smoke": 20, "improvement": 30, "validation": 30}
+
+
 @dataclass(frozen=True)
 class ValidationReport:
     valid: bool
@@ -164,18 +168,50 @@ def load_manifest(path: str | Path) -> Mapping[str, Any]:
     if not manifest_path.exists():
         raise FileNotFoundError(f"evaluation manifest is missing: {manifest_path}")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("schema_version") != 1:
+    if not isinstance(manifest, Mapping):
+        raise ValueError("evaluation manifest must be a JSON object")
+    if manifest.get("schema_version") != MANIFEST_SCHEMA_VERSION:
         raise ValueError("unsupported evaluation manifest schema")
-    hf = manifest.get("huggingface", {})
-    required = ("id", "revision", "license", "language", "source_url", "rows_api", "splits")
+    project = manifest.get("project_source")
+    if not isinstance(project, Mapping):
+        raise ValueError("manifest is missing project source provenance")
+    project_required = ("path", "count", "source_url", "provenance")
+    missing_project = [key for key in project_required if not project.get(key)]
+    if missing_project:
+        raise ValueError(f"manifest is missing project source provenance: {', '.join(missing_project)}")
+    if int(project["count"]) != MODE_CASE_COUNTS["smoke"]:
+        raise ValueError(f"smoke manifest must contain exactly {MODE_CASE_COUNTS['smoke']} cases")
+
+    hf = manifest.get("huggingface")
+    if not isinstance(hf, Mapping):
+        raise ValueError("manifest is missing Hugging Face provenance")
+    required = (
+        "id", "config", "revision", "license", "language", "source_url",
+        "metadata_api", "rows_api", "splits",
+    )
     missing = [key for key in required if not hf.get(key)]
     if missing:
         raise ValueError(f"manifest is missing Hugging Face provenance: {', '.join(missing)}")
-    validate_split_disjointness(manifest)
-    for split_name, split_info in hf["splits"].items():
+    if not isinstance(hf["splits"], Mapping):
+        raise ValueError("manifest Hugging Face splits must be an object")
+    for split_name in ("improvement", "validation"):
+        split_info = hf["splits"].get(split_name)
+        if not isinstance(split_info, Mapping):
+            raise ValueError(f"manifest is missing {split_name} split")
+        required_split = ("source_split", "count", "selection")
+        missing_split = [key for key in required_split if not split_info.get(key)]
+        if missing_split:
+            raise ValueError(f"manifest {split_name} split is missing: {', '.join(missing_split)}")
         selection = split_info.get("selection", [])
-        if len(selection) != int(split_info.get("count", -1)):
+        if not isinstance(selection, list) or len(selection) != int(split_info["count"]):
             raise ValueError(f"manifest count mismatch for {split_name}")
+        if int(split_info["count"]) != MODE_CASE_COUNTS[split_name]:
+            raise ValueError(f"{split_name} manifest must contain exactly {MODE_CASE_COUNTS[split_name]} cases")
         if any(not entry.get("row_id") or len(entry.get("row_hash", "")) != 64 for entry in selection):
             raise ValueError(f"manifest has incomplete immutable row identity for {split_name}")
+        row_ids = [str(entry["row_id"]) for entry in selection]
+        row_indices = [int(entry["row_idx"]) for entry in selection]
+        if len(row_ids) != len(set(row_ids)) or len(row_indices) != len(set(row_indices)):
+            raise ValueError(f"manifest has duplicate selected rows for {split_name}")
+    validate_split_disjointness(manifest)
     return manifest

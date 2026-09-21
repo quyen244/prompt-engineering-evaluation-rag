@@ -24,12 +24,38 @@ class EvaluationHarnessTests(unittest.TestCase):
         self.assertEqual(manifest["project_source"]["count"], 20)
         self.assertEqual(manifest["huggingface"]["splits"]["improvement"]["count"], 30)
         self.assertEqual(manifest["huggingface"]["splits"]["validation"]["count"], 30)
+        self.assertEqual(manifest["huggingface"]["license"], "cc-by-sa-4.0")
+        for split in ("improvement", "validation"):
+            selection = manifest["huggingface"]["splits"][split]["selection"]
+            self.assertEqual(len({item["row_id"] for item in selection}), 30)
+            self.assertEqual(len({item["row_idx"] for item in selection}), 30)
+            self.assertTrue(all(len(item["row_hash"]) == 64 for item in selection))
 
     def test_project_cases_are_real_and_source_spans_match(self):
         cases = load_cases(ROOT / "eval_data/project_source_cases.jsonl")
         self.assertEqual(len(cases), 20)
         self.assertTrue(validate_project_cases(cases, ROOT).valid)
         self.assertTrue(all(case.source == "project" for case in cases))
+
+    def test_smoke_selection_is_repeatable(self):
+        first = mode_cases("smoke", root=ROOT)
+        second = mode_cases("smoke", root=ROOT)
+        self.assertEqual([case.case_id for case in first], [case.case_id for case in second])
+        self.assertEqual([case.to_dict() for case in first], [case.to_dict() for case in second])
+
+    def test_missing_sources_fail_without_fallback_cases(self):
+        missing = ROOT / "eval_data" / "does-not-exist.jsonl"
+        with self.assertRaisesRegex(FileNotFoundError, "evaluation data is missing"):
+            load_cases(missing)
+        with self.assertRaisesRegex(FileNotFoundError, "evaluation manifest is missing"):
+            load_manifest(ROOT / "eval_data" / "manifests" / "does-not-exist.json")
+
+        real_cases = load_cases(ROOT / "eval_data/project_source_cases.jsonl")
+        with tempfile.TemporaryDirectory() as empty_root:
+            report = validate_project_cases(real_cases, empty_root)
+        self.assertFalse(report.valid)
+        self.assertEqual(report.checked, 20)
+        self.assertTrue(any("source file does not exist" in error for error in report.errors))
 
     def test_retrieval_metrics(self):
         ranked = ["wrong", "gold", "other"]
