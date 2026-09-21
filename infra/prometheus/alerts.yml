@@ -33,3 +33,11 @@ groups:
         annotations:
           summary: Telemetry signals were dropped
           description: Product traffic remains fail-open; inspect exporter and history sink health.
+      - alert: OfflineQualityBelowThreshold
+        expr: rag_evaluation_score < on(quality_metric, dataset_split) rag_evaluation_threshold
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Offline evaluation is below its configured threshold
+          description: Inspect the linked MLflow evaluation run and lineage; the threshold and score are supplied by the evaluator.

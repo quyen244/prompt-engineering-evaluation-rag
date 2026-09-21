@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from .constants import PROMETHEUS_LABELS, RETRIEVAL_STRATEGIES
+from .constants import PROMETHEUS_LABELS, QUALITY_METRICS, RETRIEVAL_STRATEGIES
 
 try:  # Optional import keeps local/offline tools usable without Prometheus installed.
     from prometheus_client import Counter, Gauge, Histogram
@@ -39,6 +39,14 @@ CONTEXT_TOKENS = Histogram(
     buckets=(0, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, float("inf")),
 )
 TELEMETRY_DROPPED = Counter("telemetry_dropped_signals_total", "Signals dropped by telemetry", ["signal"])
+RAG_EVALUATION_SCORE = Gauge(
+    "rag_evaluation_score", "Offline evaluation score supplied by the evaluator",
+    ["quality_metric", "dataset_split", "retrieval_strategy"],
+)
+RAG_EVALUATION_THRESHOLD = Gauge(
+    "rag_evaluation_threshold", "Configured offline evaluation acceptance threshold",
+    ["quality_metric", "dataset_split"],
+)
 
 _ALLOWED_MODELS = frozenset(filter(None, os.getenv("TELEMETRY_MODELS", "default,other").split(",")))
 _ALLOWED_ENDPOINTS = frozenset({"query", "document_experiment"})
@@ -100,3 +108,26 @@ def record_cost(model: str, cost_usd: float, *, endpoint: str = "query") -> None
 def mark_dropped(signal: str) -> None:
     safe_signal = signal if signal in {"span", "event", "log"} else "other"
     TELEMETRY_DROPPED.labels(signal=safe_signal).inc()
+
+
+def record_evaluation(
+    quality_metric: str, score: float | None, threshold: float | None, *,
+    dataset_split: str, strategy: str,
+) -> None:
+    """Publish an actual offline score and its configured threshold when supplied.
+
+    ``None`` deliberately emits nothing, so missing MLflow/judge output cannot be
+    mistaken for a passing quality result.
+    """
+    if quality_metric not in QUALITY_METRICS:
+        raise ValueError(f"unsupported quality metric: {quality_metric}")
+    if dataset_split not in PROMETHEUS_LABELS["dataset_split"]:
+        raise ValueError(f"unsupported dataset split: {dataset_split}")
+    for name, value in (("score", score), ("threshold", threshold)):
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 1):
+            raise ValueError(f"evaluation {name} must be between 0 and 1")
+    labels = {"quality_metric": quality_metric, "dataset_split": dataset_split}
+    if score is not None:
+        RAG_EVALUATION_SCORE.labels(**labels, retrieval_strategy=retrieval_strategy(strategy)).set(score)
+    if threshold is not None:
+        RAG_EVALUATION_THRESHOLD.labels(**labels).set(threshold)

@@ -13,7 +13,8 @@
     {"id": 4, "type": "timeseries", "title": "Tokens per minute", "gridPos": {"h": 8, "w": 8, "x": 8, "y": 8}, "targets": [{"expr": "sum(rate(llm_tokens_total[5m])) * 60", "legendFormat": "{{token_type}} / {{model}}"}]},
     {"id": 5, "type": "timeseries", "title": "LLM spend per hour", "gridPos": {"h": 8, "w": 8, "x": 16, "y": 8}, "targets": [{"expr": "sum(rate(llm_cost_usd_total[15m])) * 3600", "legendFormat": "USD/hour"}]},
     {"id": 6, "type": "heatmap", "title": "Retrieval top-score distribution", "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}, "targets": [{"expr": "sum(rate(rag_retrieval_top_score_bucket[10m])) by (le, retrieval_strategy)", "legendFormat": "{{retrieval_strategy}}"}]},
-    {"id": 7, "type": "timeseries", "title": "No-answer rate", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}, "targets": [{"expr": "sum(rate(rag_no_answer_total[10m])) / clamp_min(sum(rate(rag_query_duration_seconds_count[10m])), 1)", "legendFormat": "no-answer"}]}
+    {"id": 7, "type": "timeseries", "title": "No-answer rate", "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}, "targets": [{"expr": "sum(rate(rag_no_answer_total[10m])) / clamp_min(sum(rate(rag_query_duration_seconds_count[10m])), 1)", "legendFormat": "no-answer"}]},
+    {"id": 8, "type": "timeseries", "title": "Offline quality score and configured threshold", "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24}, "targets": [{"expr": "rag_evaluation_score", "legendFormat": "score {{quality_metric}} / {{dataset_split}} / {{retrieval_strategy}}"}, {"expr": "rag_evaluation_threshold", "legendFormat": "threshold {{quality_metric}} / {{dataset_split}}"}]}
   ],
   "links": [{"title": "Open traces", "type": "link", "url": "explore?orgId=1&left=%5B%5B%22tempo%22%2C%22%7B%7B__value.time%7D%7D%22%5D%5D"}],
   "templating": {"list": []},

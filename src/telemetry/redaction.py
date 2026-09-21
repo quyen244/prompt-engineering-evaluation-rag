@@ -12,14 +12,15 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
-from .constants import SENSITIVE_KEY_PARTS
+from .constants import MAX_EVENT_COLLECTION_ITEMS, MAX_EVENT_NESTING, SENSITIVE_KEY_PARTS
 
 _SECRET_VALUE = re.compile(r"(?i)(bearer\s+|sk-[A-Za-z0-9_-]{12,}|api[_-]?key\s*[:=])")
 _ALLOWED_RAW_TEXT_KEYS = {
-    "event_type", "event_version", "outcome", "error_type", "stage",
+    "event_type", "event_version", "occurred_at", "outcome", "error_type", "stage",
     "retrieval_strategy", "prompt_version", "model_version", "dataset_split",
     "run_id", "request_id", "trace_id", "document_id", "experiment_id",
-    "operation", "service_name", "event_name",
+    "operation", "service_name", "event_name", "quality_metric",
+    "finish_reason", "error_code", "retryable",
 }
 
 
@@ -43,10 +44,15 @@ def _is_secret(key: str) -> bool:
     return any(part in key for part in SENSITIVE_KEY_PARTS if part not in {"question", "answer", "prompt", "completion"})
 
 
-def redact_event(event: Mapping[str, Any]) -> dict[str, Any]:
+def redact_event(event: Mapping[str, Any], *, _depth: int = 0) -> dict[str, Any]:
     """Return a JSON-safe, recursively redacted copy of an event."""
+    if _depth >= MAX_EVENT_NESTING:
+        return {"redacted": True, "reason": "max_nesting"}
     output: dict[str, Any] = {}
-    for original_key, value in event.items():
+    for index, (original_key, value) in enumerate(event.items()):
+        if index >= MAX_EVENT_COLLECTION_ITEMS:
+            output["_truncated_fields"] = True
+            break
         key = str(original_key)
         normalized = _key_name(key)
         if _is_question(normalized):
@@ -62,20 +68,24 @@ def redact_event(event: Mapping[str, Any]) -> dict[str, Any]:
         if _is_secret(normalized):
             output[key] = "[REDACTED]"
             continue
-        output[key] = _redact_value(normalized, value)
+        output[key] = _redact_value(normalized, value, _depth=_depth + 1)
     return output
 
 
-def _redact_value(parent_key: str, value: Any) -> Any:
+def _redact_value(parent_key: str, value: Any, *, _depth: int) -> Any:
     if isinstance(value, Mapping):
-        return redact_event(value)
+        return redact_event(value, _depth=_depth)
     if isinstance(value, (list, tuple)):
-        return [_redact_value(parent_key, item) for item in value]
+        items = [_redact_value(parent_key, item, _depth=_depth) for item in value[:MAX_EVENT_COLLECTION_ITEMS]]
+        if len(value) > MAX_EVENT_COLLECTION_ITEMS:
+            return {"items": items, "truncated": True, "original_length": len(value)}
+        return items
     if isinstance(value, str):
         if parent_key not in _ALLOWED_RAW_TEXT_KEYS and _SECRET_VALUE.search(value):
             return "[REDACTED]"
-        # Unknown free text is not useful in telemetry and can contain PII.
-        if parent_key not in _ALLOWED_RAW_TEXT_KEYS and len(value) > 256:
+        # Unknown free text is not useful in telemetry and can contain PII, even
+        # when it is short. Preserve only its digest and size for correlation.
+        if parent_key not in _ALLOWED_RAW_TEXT_KEYS:
             return {"sha256": digest_text(value), "length": len(value)}
     return value
 
