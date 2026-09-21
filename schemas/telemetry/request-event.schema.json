@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/telemetry/request-event.schema.json",
+  "title": "RAG request telemetry event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_type", "event_version", "occurred_at", "request_id", "run_id", "retrieval_strategy", "prompt_version", "model_version", "dataset_split", "outcome"],
+  "properties": {
+    "event_type": {"const": "request"},
+    "event_version": {"type": "string", "const": "1.0"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "request_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "trace_id": {"type": ["string", "null"], "maxLength": 128},
+    "run_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "retrieval_strategy": {"enum": ["bm25_only", "bm25_reranker", "dense", "hybrid"]},
+    "prompt_version": {"type": "string", "minLength": 1, "maxLength": 128},
+    "model_version": {"type": "string", "minLength": 1, "maxLength": 128},
+    "dataset_split": {"enum": ["train", "validation", "test", "production", "unknown"]},
+    "latency_ms": {"type": ["number", "null"], "minimum": 0},
+    "prompt_tokens": {"type": ["integer", "null"], "minimum": 0},
+    "completion_tokens": {"type": ["integer", "null"], "minimum": 0},
+    "cost_usd": {"type": ["number", "null"], "minimum": 0},
+    "outcome": {"enum": ["success", "no_answer", "error", "timeout", "cancelled"]}
+  },
+  "not": {"anyOf": [{"required": ["question"]}, {"required": ["answer"]}, {"required": ["api_key"]}, {"required": ["secret"]}]}
+}
