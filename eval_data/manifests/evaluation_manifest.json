@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "created_for": "truthful-rag-evaluation",
+  "policy": {
+    "download": "bounded-api-only",
+    "no_fallback": true,
+    "selection_is_immutable": true,
+    "row_hash_algorithm": "sha256(canonical-json-sort-keys-utf8)"
+  },
+  "project_source": {
+    "path": "eval_data/project_source_cases.jsonl",
+    "count": 20,
+    "source_url": "file://checked-in-project-source",
+    "provenance": "Questions and answer quotes are manually curated from the cited checked-in source spans; no generated or mock cases."
+  },
+  "huggingface": {
+    "id": "rajpurkar/squad",
+    "config": "plain_text",
+    "revision": "7b6d24c440a36b6815f21b70d25016731768db1f",
+    "license": "cc-by-sa-4.0",
+    "language": ["en"],
+    "source_url": "https://huggingface.co/datasets/rajpurkar/squad/tree/7b6d24c440a36b6815f21b70d25016731768db1f",
+    "metadata_api": "https://huggingface.co/api/datasets/rajpurkar/squad",
+    "rows_api": "https://datasets-server.huggingface.co/first-rows",
+    "download_provenance": {
+      "method": "Hugging Face datasets-server first-rows API",
+      "retrieved_at_utc": "2026-09-21T04:42:16Z",
+      "request_shape": "?dataset=rajpurkar/squad&config=plain_text&split={split}",
+      "local_artifacts": "none; rows are fetched at run time and hash-verified"
+    },
+    "splits": {
+      "improvement": {
+        "source_split": "train",
+        "count": 30,
+        "selection": [
+          {"row_idx":0,"row_id":"5733be284776f41900661182","row_hash":"48ed8b41140120082042ceb0ec771d936b4224c510b4847ff675d96c927988b6"},
+          {"row_idx":1,"row_id":"5733be284776f4190066117f","row_hash":"e4f0dbc2a01b7041139bdec2eaf02f1d817d5669086a86f41f8f277922200e10"},
+          {"row_idx":2,"row_id":"5733be284776f41900661180","row_hash":"141b7bdd2a5270c0fff07573c0182628a1ed6658f101ee8b86558c5e443e1741"},
+          {"row_idx":3,"row_id":"5733be284776f41900661181","row_hash":"ce79473520cde5558d8e00f1db233f679803348ddef03ef3bf493b571d0fa9c0"},
+          {"row_idx":4,"row_id":"5733be284776f4190066117e","row_hash":"8381b7b92b9890f26cb3dbe0bc95e9dbed44abe631f9a22d566815f68ef08571"},
+          {"row_idx":5,"row_id":"5733bf84d058e614000b61be","row_hash":"06a38c065b5120405af580fe498430f925c55c95ff8f30b19213a8282f555837"},
+          {"row_idx":6,"row_id":"5733bf84d058e614000b61bf","row_hash":"cf57e13a0a8e4057c163803520aa9a1eddf7637748f4c2cd3b4eda23e997b9aa"},
+          {"row_idx":7,"row_id":"5733bf84d058e614000b61c0","row_hash":"26ac1fc1271f7f4493f0e6adf54b3a7d43e428bddc06475f3b5f55c2afd36ffa"},
+          {"row_idx":8,"row_id":"5733bf84d058e614000b61bd","row_hash":"e1f3b14256a4cf17d231ca1204fc590a17081e0325cf452bcd340fabb44a0d0c"},
+          {"row_idx":9,"row_id":"5733bf84d058e614000b61c1","row_hash":"59232a87a8539f28a40a8d259b2bc3cf6e9b9097b73601381e4a7ab083c6bc2b"},
+          {"row_idx":10,"row_id":"5733bed24776f41900661188","row_hash":"34c50f5865a844f19e92bbc3b9027852c75f08194331aa51998c9d046dadbf3f"},
+          {"row_idx":11,"row_id":"5733bed24776f41900661189","row_hash":"91006f3d977cff7a45662ba40eb83814e86dc16e7a5d9da91102b2cdbd9783c0"},
+          {"row_idx":12,"row_id":"5733bed24776f4190066118a","row_hash":"8facbf805bc1e58a82e2e9159994ca541b56379e0f336b612c90da8643527f61"},
+          {"row_idx":13,"row_id":"5733bed24776f4190066118b","row_hash":"5e6c45c5b8c08c245fd0da57d0f3d975d7bd78f3f581a159664c7498f83013a7"},
+          {"row_idx":14,"row_id":"5733bed24776f4190066118c","row_hash":"cf560f2d066268ec2e538c2fc14a54c4a803eabce1bc96505620a80b372829a5"},
+          {"row_idx":15,"row_id":"5733a6424776f41900660f51","row_hash":"0ef2a79db16782ec75c9a7ab0a1cd3df1024e6b499e6aa24ab366b44cfda1c9d"},
+          {"row_idx":16,"row_id":"5733a6424776f41900660f4e","row_hash":"af3954bf395fe124f67638c20221e1668fe42d7a9b38b7591ba0068ef2af6dbf"},
+          {"row_idx":17,"row_id":"5733a6424776f41900660f4f","row_hash":"999b214e8a1c342da4fb000e7f7baa2dd17a043d75a47d9d2ca34b48651a4375"},
+          {"row_idx":18,"row_id":"5733a6424776f41900660f50","row_hash":"f9f123c6419946c3213b0edd68dbf4ce286bf69e6453c415524628254d2ad0b3"},
+          {"row_idx":19,"row_id":"5733a6424776f41900660f52","row_hash":"ed40041b981b4c8a2069d5ce04bb555fa3af04448a3172bec0b08cd7cbc843d8"},
+          {"row_idx":20,"row_id":"5733a70c4776f41900660f64","row_hash":"ced7b88873b3bd8bac6f0089bff108270895e9567cb8d5bd1cd6e62fcf10cd06"},
+          {"row_idx":21,"row_id":"5733a70c4776f41900660f62","row_hash":"89877125a2e963cce54a1a72971da1fca71b6b258f8cca828d657feb78f23f60"},
+          {"row_idx":22,"row_id":"5733a70c4776f41900660f63","row_hash":"4734fb67265fbc616366bc62184813402b9fbed3d4bb6dfaa674e5bab833206d"},
+          {"row_idx":23,"row_id":"5733a70c4776f41900660f65","row_hash":"0db8ee114aa74d587a5074bc595523b0ee8bfc62651cacd14a70c41cccc0a286"},
+          {"row_idx":24,"row_id":"5733a7bd4776f41900660f6b","row_hash":"9a5cdffe81610146e4e5fe2c73fe6df0c99b9dc72348cd48cf085a7f8645f68d"},
+          {"row_idx":25,"row_id":"5733a7bd4776f41900660f6c","row_hash":"aeee12ce54a6e0bb09d30382f93888e8e26fac17bfff8425f8060e8429b8b068"},
+          {"row_idx":26,"row_id":"5733a7bd4776f41900660f6e","row_hash":"acf80a49d31cc39921c192509f09152b98fa163a78d9277ad34cae6a9341049a"},
+          {"row_idx":27,"row_id":"5733a7bd4776f41900660f6a","row_hash":"fe6cce05a7273d9f074a48c26a2b354ef070f6aa67677112b93999989c8467e1"},
+          {"row_idx":28,"row_id":"5733a7bd4776f41900660f6d","row_hash":"970ad582d9515b8dfbd1908000cb5ace0ee2bf1decda91cfec790d201e54a032"},
+          {"row_idx":29,"row_id":"5733ac31d058e614000b5ff3","row_hash":"2a618724919e6b7090e4806777febc5b558e899a6399a7e5b38c85bf2adf3943"}
+        ]
+      },
+      "validation": {
+        "source_split": "validation",
+        "count": 30,
+        "selection": [
+          {"row_idx":0,"row_id":"56be4db0acb8001400a502ec","row_hash":"f30e19767e702c0881d7a0502802c74bcc5eb9769e08eedca0cdf177a350205e"},
+          {"row_idx":1,"row_id":"56be4db0acb8001400a502ed","row_hash":"8981163ae88dac9de9e21377bf88a8018b6e0d12e8c5292171778ea4bb73e433"},
+          {"row_idx":2,"row_id":"56be4db0acb8001400a502ee","row_hash":"20ad6780a383c524f2caec32bd15ba704e0dcbb8b72e0548110a973d4f585592"},
+          {"row_idx":3,"row_id":"56be4db0acb8001400a502ef","row_hash":"3547220ab017d345dcffab6ac31a0d692cb83e6bfbdfaeebfc7381ee0ca028a3"},
+          {"row_idx":4,"row_id":"56be4db0acb8001400a502f0","row_hash":"87786365fc791e9f903656b16a99e990fafafbfd4c4959f9038c4a0a9e73d9d7"},
+          {"row_idx":5,"row_id":"56be8e613aeaaa14008c90d1","row_hash":"ab85d94067e06d5f7b42d419965676896c0816fa3d3c178ad4980471fd468d23"},
+          {"row_idx":6,"row_id":"56be8e613aeaaa14008c90d2","row_hash":"f3d5a5b7da5d47ee878e5ef3b75059b0a941132e60de0720eda77beca49be428"},
+          {"row_idx":7,"row_id":"56be8e613aeaaa14008c90d3","row_hash":"1f0805c9b046c4f4001d2ec32bdb61771e706ea9e110237590f5e9799852b885"},
+          {"row_idx":8,"row_id":"56bea9923aeaaa14008c91b9","row_hash":"46bd8923898e444070127aac9f9b1cd31ba9986d450863075537ba40770a664a"},
+          {"row_idx":9,"row_id":"56bea9923aeaaa14008c91ba","row_hash":"672c4c24221eb313710eedb32282eac36320444de4c414bfb94d14dce81dec57"},
+          {"row_idx":10,"row_id":"56bea9923aeaaa14008c91bb","row_hash":"e0aecc8d160f44b6fb7087a5a1e72c9bd6e78973224bf101f1c46c09e2871ea8"},
+          {"row_idx":11,"row_id":"56beace93aeaaa14008c91df","row_hash":"9d08510495fd880c09e7947959159fea7c9486899d71410e498269c362a41172"},
+          {"row_idx":12,"row_id":"56beace93aeaaa14008c91e0","row_hash":"5688f88434816c93168e085f58c767e96c859e2f7ced22d5940face287370fdd"},
+          {"row_idx":13,"row_id":"56beace93aeaaa14008c91e1","row_hash":"7c85ce96977b74f84c78d5d02d6f786cee3c68a18f98bd530ec4bb49241d6c78"},
+          {"row_idx":14,"row_id":"56beace93aeaaa14008c91e2","row_hash":"c51e5615681dd4665d93ce114bec94dfa498cf29ef0a5f68ff5e74a95401db5b"},
+          {"row_idx":15,"row_id":"56beace93aeaaa14008c91e3","row_hash":"7a170f0723b8aefaf31aab902ce346b41d26be33adbf4726fafffbf427f5a599"},
+          {"row_idx":16,"row_id":"56bf10f43aeaaa14008c94fd","row_hash":"1d17861add130925f8cc60e316c0119388fc653a765bfd91b400b17b7f262f9b"},
+          {"row_idx":17,"row_id":"56bf10f43aeaaa14008c94fe","row_hash":"4efd186aa7e685e6082885c032f0a67fa556b10e55b3f0a96c3c078c5cc5498c"},
+          {"row_idx":18,"row_id":"56bf10f43aeaaa14008c94ff","row_hash":"a534d4df7fd9bf3fe912ecc65b6b3e9c84024b35274fc5c22ea9661f6d3f7a39"},
+          {"row_idx":19,"row_id":"56bf10f43aeaaa14008c9500","row_hash":"b177b20b807bccebd3f492fd9edfecb046c5b64468379a70067ecc2c47206e4b"},
+          {"row_idx":20,"row_id":"56bf10f43aeaaa14008c9501","row_hash":"94ccb955d1c5ede201d26d9c24499e9258ba556e5fd4819e7452cdc097075753"},
+          {"row_idx":21,"row_id":"56d20362e7d4791d009025e8","row_hash":"c4a206b1629ed718e2f518ac99b042e3b635942ec0a71f95322bc47590984585"},
+          {"row_idx":22,"row_id":"56d20362e7d4791d009025e9","row_hash":"75e3e59c23704afa34f5686bdcba2d159a7a10f7fe291943192ce0b022dbcd51"},
+          {"row_idx":23,"row_id":"56d20362e7d4791d009025ea","row_hash":"e612f9214635b515b36b9c3b6e4be1e7e70289414c758c45f000d0308a258f2c"},
+          {"row_idx":24,"row_id":"56d20362e7d4791d009025eb","row_hash":"bbcdbdb6258e7845892978f7e142cbdaacf31365d7b2d79d3d58d2fc87c8b418"},
+          {"row_idx":25,"row_id":"56d600e31c85041400946eae","row_hash":"48d46b90f8bed990634f666123a6abe66902422f1e226827730e5adb7f21dcfa"},
+          {"row_idx":26,"row_id":"56d600e31c85041400946eb0","row_hash":"0d5634c3a31bb57531a2e4689f351d7d3820630ae7ac1f8e78b4ebd536b8be6d"},
+          {"row_idx":27,"row_id":"56d600e31c85041400946eb1","row_hash":"3cfdbac1d78f07cbc14ccc7fdb742e14764e9cdac89613cd95936bff037bb677"},
+          {"row_idx":28,"row_id":"56d9895ddc89441400fdb50e","row_hash":"1778ec752c3e30f12ac07000abaf16c9e4d591487445dcccb7c6c38cbfa0a457"},
+          {"row_idx":29,"row_id":"56d9895ddc89441400fdb510","row_hash":"99c7b62a4386bf03a24fc89edaa9eb1a23b3064358b033c785b09b2b0736c360"}
+        ]
+      }
+    }
+  }
+}
