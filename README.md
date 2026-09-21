@@ -102,7 +102,14 @@ mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 ## Stack
 
-**RAG**: LlamaIndex · Qdrant · sentence-transformers (local embedding) · OpenRouter (LLM)
+**RAG**: LangChain · Qdrant adapter · sentence-transformers (local embedding) · OpenRouter (LLM)
+
+The RAG foundation lives in `src/rag/`: ingestion and source metadata, LangChain
+splitting, local embeddings, dense/BM25 retrieval, reciprocal-rank fusion,
+optional cross-encoder reranking, and answer generation are explicit components.
+`RAGPipeline` returns ranked `RetrievedSource` metadata with every answer and
+keeps configuration immutable per instance. See `docs/rag_core.md` for the
+smallest end-to-end example.
 **Eval & Experiment**: MLflow · LLM-as-judge tự viết · bootstrap CI
 **Serving**: FastAPI · MLflow Model Registry · SSE streaming
 **Observability**: OpenTelemetry · Prometheus · Grafana · Tempo · structlog
