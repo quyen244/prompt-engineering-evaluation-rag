@@ -30,6 +30,11 @@ RAG_TOP_SCORE = Histogram(
     buckets=(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
 )
 RAG_ERRORS = Counter("rag_errors_total", "RAG errors", ["stage", "error_type"])
+RAG_INGESTIONS = Counter("rag_ingestions_total", "Document ingestion attempts", ["outcome"])
+RAG_INGESTED_CHUNKS = Histogram(
+    "rag_ingested_chunks", "Number of chunks produced by an ingestion",
+    buckets=(0, 1, 5, 10, 25, 50, 100, 250, 500, 1000, float("inf")),
+)
 RAG_NO_ANSWER = Counter("rag_no_answer_total", "Successful requests with no answer")
 RAG_IN_FLIGHT = Gauge("rag_queries_in_flight", "RAG requests currently running")
 LLM_TOKENS = Counter("llm_tokens_total", "LLM tokens", ["token_type", "model"])
@@ -82,6 +87,26 @@ def model_label(model: str) -> str:
 
 def record_stage_duration(stage: str, seconds: float, strategy: str) -> None:
     RAG_DURATION.labels(stage=_label("stage", stage), retrieval_strategy=retrieval_strategy(strategy)).observe(max(0.0, seconds))
+
+
+def record_ingestion(outcome: str, *, chunk_count: int | None = None) -> None:
+    """Record one upload/index outcome and optional bounded chunk count."""
+    if outcome not in {"success", "error", "timeout", "cancelled"}:
+        raise ValueError(f"unsupported ingestion outcome: {outcome!r}")
+    if chunk_count is not None:
+        if isinstance(chunk_count, bool) or not isinstance(chunk_count, int) or chunk_count < 0:
+            raise ValueError("chunk_count must be a non-negative integer")
+        if outcome != "success":
+            raise ValueError("chunk_count is only recorded for successful ingestion")
+        RAG_INGESTED_CHUNKS.observe(chunk_count)
+    RAG_INGESTIONS.labels(outcome=outcome).inc()
+
+
+def record_error(stage: str, error_type: str) -> None:
+    """Record an error by finite lifecycle stage and error category only."""
+    RAG_ERRORS.labels(
+        stage=_label("stage", stage), error_type=_label("error_type", error_type),
+    ).inc()
 
 
 def record_llm_call(model: str, prompt_tokens: int, completion_tokens: int, *, endpoint: str = "query") -> float:

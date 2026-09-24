@@ -54,7 +54,7 @@ function LoadNotice({ state, onRetry }: { state: LoadState<unknown>; onRetry: ()
 
 function IdentityStrip({ response }: { response?: QueryResponse }) {
   const identities = [
-    ['Dataset', response?.datasetId],
+    ['Documents', response?.documentIds?.join(', ') || response?.datasetId],
     ['Prompt', response?.promptId],
     ['Model', response?.modelId],
     ['Run', response?.runId],
@@ -66,16 +66,28 @@ function IdentityStrip({ response }: { response?: QueryResponse }) {
 }
 
 function AskView() {
+  const documentsLoader = useCallback(() => api.listIndexedDocuments(), []);
+  const [documentsState, retryDocuments] = useLoad<DocumentRecord[]>(documentsLoader);
+  useEffect(() => { void retryDocuments(); }, [retryDocuments]);
   const [question, setQuestion] = useState('');
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[] | null>(null);
+  const [topK, setTopK] = useState(5);
   const [result, setResult] = useState<LoadState<QueryResponse>>({ status: 'idle' });
   const [lastQuestion, setLastQuestion] = useState('');
+  const documents = documentsState.status === 'ready' || documentsState.status === 'stale' ? documentsState.data ?? [] : [];
+  const selectedIds = selectedDocumentIds ?? documents.map((document) => document.documentId);
+  const toggleDocument = (documentId: string) => {
+    const current = selectedDocumentIds ?? documents.map((document) => document.documentId);
+    const next = current.includes(documentId) ? current.filter((id) => id !== documentId) : [...current, documentId];
+    setSelectedDocumentIds(next.length === documents.length ? null : next);
+  };
   const ask = async () => {
     const trimmed = question.trim();
-    if (!trimmed) return;
+    if (!trimmed || selectedIds.length === 0) return;
     setLastQuestion(trimmed);
     setResult({ status: 'loading' });
     try {
-      setResult({ status: 'ready', data: await api.query({ question: trimmed }) });
+      setResult({ status: 'ready', data: await api.query({ question: trimmed, documentIds: selectedIds, topK }) });
     } catch (error) {
       setResult({ status: 'error', error: error instanceof Error ? error.message : 'Query failed.', data: undefined });
     }
@@ -87,16 +99,24 @@ function AskView() {
     <div className="ask-grid">
       <div className="ask-main">
         <div className="question-card">
+          <div className="query-controls">
+            <div className="document-picker">
+              <div className="query-control-heading"><label>Indexed documents</label><div className="selection-actions"><button type="button" className="text-button" onClick={() => setSelectedDocumentIds(null)} disabled={!documents.length}>Select all</button><button type="button" className="text-button" onClick={() => setSelectedDocumentIds([])} disabled={!documents.length}>Clear</button></div></div>
+              <LoadNotice state={documentsState} onRetry={() => void retryDocuments()} />
+              {documents.length ? <div className="document-options">{documents.map((document) => <label className="document-option" key={document.documentId}><input type="checkbox" checked={selectedIds.includes(document.documentId)} onChange={() => toggleDocument(document.documentId)} /><span><strong>{document.name}</strong><small>{document.documentId}</small></span></label>)}</div> : documentsState.status !== 'loading' && <p className="control-empty">No indexed documents found. Upload a PDF from Documents first.</p>}
+            </div>
+            <div className="top-k-control"><label htmlFor="top-k">Passages to retrieve</label><input id="top-k" type="number" min={1} max={50} value={topK} onChange={(event) => setTopK(Math.max(1, Math.min(50, Number(event.target.value) || 1)))} /><small>Top K, 1-50</small></div>
+          </div>
           <label htmlFor="question">Question</label>
           <textarea id="question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question about your indexed documents…" rows={4} onKeyDown={(event) => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) void ask(); }} />
-          <div className="composer-footer"><span className="keyboard-hint">⌘ ↵ to run</span><button className="primary-button" onClick={() => void ask()} disabled={!question.trim() || result.status === 'loading'}>{result.status === 'loading' ? 'Running…' : 'Run query'} <span aria-hidden="true">↗</span></button></div>
+          <div className="composer-footer"><span className="keyboard-hint">{selectedIds.length} document{selectedIds.length === 1 ? '' : 's'} · {topK} passages</span><button className="primary-button" onClick={() => void ask()} disabled={!question.trim() || selectedIds.length === 0 || result.status === 'loading' || documentsState.status === 'loading'}>{result.status === 'loading' ? 'Running…' : 'Run query'} <span aria-hidden="true">↗</span></button></div>
         </div>
         {result.status === 'error' && <div className="notice notice-error query-error"><strong>Could not run query.</strong> {result.error}<button className="text-button" onClick={() => void ask()}>Try again</button></div>}
         {result.status === 'loading' && <div className="answer-card loading-card"><div className="skeleton skeleton-wide" /><div className="skeleton skeleton-medium" /><div className="skeleton skeleton-short" /></div>}
         {answer && <div className="answer-card"><div className="answer-header"><div><span className="card-kicker">Answer</span><h2>{lastQuestion}</h2></div><StatusBadge status="completed" /></div><p className="answer-copy">{answer.answer || <Unavailable label="No answer returned" />}</p><IdentityStrip response={answer} /><div className="evidence-heading"><h3>Source evidence</h3><span>{evidenceLabel(answer.evidence)}</span></div>{answer.evidence.length ? <div className="source-list">{answer.evidence.map((source) => <article className="source-card" key={source.sourceId}><div className="source-top"><span className="source-id">{source.sourceId}</span>{source.verified ? <span className="verified">✓ verified</span> : <span className="unavailable">unverified</span>}</div><h4>{source.title}</h4><p>{source.excerpt}</p>{source.locator && <small>{source.locator}</small>}</article>)}</div> : <div className="empty-evidence"><span className="empty-icon">⌕</span><strong>Evidence unavailable</strong><p>No verified source citations were returned for this answer. This console will not infer or fabricate a citation.</p></div>}</div>}
         {result.status === 'idle' && <div className="empty-answer"><div className="empty-icon large">✦</div><h2>Ask a question to start</h2><p>Your response and its evidence will appear here. No connected data is shown as measured.</p></div>}
       </div>
-      <aside className="ask-side"><div className="side-card"><div className="card-kicker">Query contract</div><h3>Trace every answer</h3><p>Each response should expose the identities needed to reproduce it. Missing fields remain visibly unavailable.</p><div className="contract-list">{['Dataset identity', 'Prompt version', 'Model identity', 'Run identity', 'Trace identity'].map((item) => <div key={item}><span>{item}</span><Unavailable /></div>)}</div></div><div className="side-card muted-side"><div className="card-kicker">Tip</div><p>Connect the API to replace this empty shell with your indexed documents. Demo fixtures, if enabled by the backend, must be marked as demo.</p></div></aside>
+      <aside className="ask-side"><div className="side-card"><div className="card-kicker">Query contract</div><h3>Trace every answer</h3><p>Each response should expose the identities needed to reproduce it. Missing fields remain visibly unavailable.</p><div className="contract-list">{['Selected documents', 'Prompt version', 'Model identity', 'Run identity', 'Trace identity'].map((item) => <div key={item}><span>{item}</span><Unavailable /></div>)}</div></div></aside>
     </div>
   </section>;
 }
@@ -106,9 +126,136 @@ function DocumentsView() {
   const [state, retry] = useLoad<DocumentRecord[]>(loader);
   const historyLoader = useCallback(() => api.documentHistory(), []);
   const [history, retryHistory] = useLoad<DocumentHistoryEntry[]>(historyLoader);
+  const [showForm, setShowForm] = useState(false);
+  const [docName, setDocName] = useState('');
+  const [docContent, setDocContent] = useState('');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleIngest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docFile && (!docName.trim() || !docContent.trim())) return;
+    setSubmitting(true);
+    try {
+      if (docFile) await api.uploadDocument(docFile);
+      else await api.ingestDocument({ name: docName.trim(), content: docContent.trim() });
+      setDocName('');
+      setDocContent('');
+      setDocFile(null);
+      setShowForm(false);
+      void retry();
+    } catch (err) {
+      alert('Ingestion failed: ' + String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const documents = state.status === 'ready' || state.status === 'stale' ? state.data ?? [] : [];
   const entries = history.status === 'ready' || history.status === 'stale' ? history.data ?? [] : [];
-  return <section className="view" aria-labelledby="documents-title"><div className="view-heading"><div><div className="eyebrow">Corpus / immutable trail</div><h1 id="documents-title">Document history</h1><p>Track every ingestion artifact without overwriting the source trail.</p></div><button className="secondary-button" disabled>＋ Ingest document</button></div><LoadNotice state={state} onRetry={() => void retry()} />{documents.length === 0 && state.status !== 'loading' ? <EmptyData title="No documents connected" copy="The document index has not returned any records. Connect the API to inspect real sources." /> : <div className="table-card"><table><thead><tr><th>Document</th><th>Version</th><th>Status</th><th>Experiments</th><th>Created</th></tr></thead><tbody>{documents.map((doc) => <tr key={doc.documentId}><td><strong>{doc.name}</strong><small>{doc.documentId}{doc.isDemo && <em>Demo fixture</em>}</small></td><td>{doc.version}</td><td><StatusBadge status={doc.status} /></td><td>{doc.experimentIds.length || <Unavailable />}</td><td>{doc.createdAt || <Unavailable />}</td></tr>)}</tbody></table></div>}<div className="section-heading"><div><div className="card-kicker">Append-only artifacts</div><h2>Experiment trail</h2></div><span className="subtle">Newest first · never inferred</span></div><LoadNotice state={history} onRetry={() => void retryHistory()} />{entries.length === 0 && history.status !== 'loading' ? <EmptyData compact title="No history entries" copy="Artifacts will appear here when the backend records a document experiment." /> : <div className="timeline">{entries.map((entry) => <div className="timeline-item" key={entry.entryId}><div className="timeline-marker" /><div className="timeline-content"><div className="timeline-title"><strong>{entry.label}</strong><StatusBadge status={entry.status} /></div><p>{entry.documentId} <span>→</span> {entry.artifactId || 'Result artifact unavailable'}</p><small>{entry.createdAt || 'Timestamp unavailable'} {entry.isDemo && <em>Demo fixture · not measured</em>}</small></div></div>)}</div>}</section>;
+  return (
+    <section className="view" aria-labelledby="documents-title">
+      <div className="view-heading">
+        <div>
+          <div className="eyebrow">Corpus / immutable trail</div>
+          <h1 id="documents-title">Document history</h1>
+          <p>Track every ingestion artifact without overwriting the source trail.</p>
+        </div>
+        <button className="secondary-button" onClick={() => setShowForm(!showForm)}>
+          {showForm ? '✕ Close form' : '＋ Ingest document'}
+        </button>
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleIngest} style={{ background: '#111827', padding: '1.25rem', borderRadius: '8px', border: '1px solid #374151', marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: '#60a5fa' }}>Ingest New Knowledge Document</h3>
+          <label style={{ display: 'grid', gap: '0.4rem', color: '#d1d5db' }}>
+            Upload a PDF for local indexing
+            <input type="file" accept="application/pdf,.pdf" onChange={(e) => setDocFile(e.target.files?.[0] ?? null)} />
+          </label>
+          <div style={{ color: '#9ca3af', fontSize: '0.8rem' }}>Or paste text below. PDF uploads are embedded by the configured Ollama model.</div>
+          <input
+            type="text"
+            placeholder="Document title (e.g. system_architecture_spec.md)"
+            value={docName}
+            onChange={(e) => setDocName(e.target.value)}
+            required={!docFile}
+            style={{ background: '#1f2937', color: '#f3f4f6', border: '1px solid #4b5563', padding: '0.5rem 0.75rem', borderRadius: '6px' }}
+          />
+          <textarea
+            rows={5}
+            placeholder="Paste document text or markdown content here..."
+            value={docContent}
+            onChange={(e) => setDocContent(e.target.value)}
+            required={!docFile}
+            style={{ background: '#1f2937', color: '#f3f4f6', border: '1px solid #4b5563', padding: '0.5rem 0.75rem', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.85rem' }}
+          />
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button type="submit" className="primary-button" disabled={submitting}>
+              {submitting ? 'Ingesting...' : 'Ingest into Knowledge Base'}
+            </button>
+            <button type="button" className="secondary-button" onClick={() => setShowForm(false)}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      <LoadNotice state={state} onRetry={() => void retry()} />
+      {documents.length === 0 && state.status !== 'loading' ? (
+        <EmptyData title="No documents connected" copy="The document index has not returned any records. Connect the API to inspect real sources." />
+      ) : (
+        <div className="table-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Experiments</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {documents.map((doc) => (
+                <tr key={doc.documentId}>
+                  <td><strong>{doc.name}</strong><small>{doc.documentId}{doc.isDemo && <em>Demo fixture</em>}</small></td>
+                  <td>{doc.version}</td>
+                  <td><StatusBadge status={doc.status} /></td>
+                  <td>{doc.experimentIds.length || <Unavailable />}</td>
+                  <td>{doc.createdAt || <Unavailable />}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="section-heading">
+        <div>
+          <div className="card-kicker">Append-only artifacts</div>
+          <h2>Experiment trail</h2>
+        </div>
+        <span className="subtle">Newest first · never inferred</span>
+      </div>
+      <LoadNotice state={history} onRetry={() => void retryHistory()} />
+      {entries.length === 0 && history.status !== 'loading' ? (
+        <EmptyData compact title="No history entries" copy="Artifacts will appear here when the backend records a document experiment." />
+      ) : (
+        <div className="timeline">
+          {entries.map((entry) => (
+            <div className="timeline-item" key={entry.entryId}>
+              <div className="timeline-marker" />
+              <div className="timeline-content">
+                <div className="timeline-title"><strong>{entry.label}</strong><StatusBadge status={entry.status} /></div>
+                <p>{entry.documentId} <span>→</span> {entry.artifactId || 'Result artifact unavailable'}</p>
+                <small>{entry.createdAt || 'Timestamp unavailable'} {entry.isDemo && <em>Demo fixture · not measured</em>}</small>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function ExperimentsView() {

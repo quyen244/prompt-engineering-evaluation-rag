@@ -297,7 +297,7 @@ class ErrorEvent:
         object.__setattr__(self, "retrieval_strategy", _validate_lineage(
             self.retrieval_strategy, self.prompt_version, self.model_version, self.dataset_split, self.outcome,
         ))
-        if self.stage not in {"retrieve", "rerank", "generate", "query", "ingest"}:
+        if self.stage not in {"upload", "parse", "chunk", "embed", "index", "retrieve", "rerank", "generate", "query", "ingest"}:
             raise ValueError(f"unsupported error stage: {self.stage}")
         if self.error_type not in ERROR_TYPES:
             raise ValueError(f"unsupported error_type: {self.error_type}")

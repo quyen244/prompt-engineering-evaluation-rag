@@ -1,126 +1,146 @@
-# RAG Production System — Prompt Engineering & Evaluation
+# Prompt Engineering and RAG Evaluation
 
-Hệ thống RAG hoàn chỉnh: user upload PDF → hỏi đáp trên chính tài liệu đó.
-Xây kèm evaluation harness, A/B testing có số liệu, model/prompt registry,
-observability đầy đủ và xử lý bất đồng bộ.
+A learning and engineering project for building a provenance-aware retrieval-augmented generation (RAG) system. The repository contains a composable LangChain RAG pipeline, offline retrieval evaluation, prompt optimization experiments, a FastAPI service, a React console, and privacy-conscious observability contracts.
 
-> 🚧 Đang xây theo lộ trình 8 phase. Xem **[ROADMAP.md](ROADMAP.md)**.
+See the [roadmap](ROADMAP.md) for current progress and the next implementation steps.
 
----
+## Current status
 
-## Bắt đầu
+The local Compose API now ingests PDFs with the configured Ollama embedding model, stores vectors in persistent Qdrant, and answers questions with the local Ollama chat model. This path was exercised end to end; other API records and product workflows remain scaffolded. See `ROADMAP.md` for the remaining production work.
+
+## Repository map
+
+```text
+src/rag/             Composable LangChain RAG components and pipeline
+src/eval/            Source-backed retrieval evaluation harness and metrics
+src/rag/optimization/ GEPA prompt optimization integration
+src/telemetry/       Privacy-safe events, metrics, logging, and tracing
+src/server.py        FastAPI service
+src/app.py           Streamlit RAG interface
+src/app_cli.py       Command-line RAG interface
+frontend/            React and TypeScript lab console
+docs/                Setup, evaluation, optimization, serving, and telemetry guides
+eval_data/           Evaluation source cases, manifests, and run artifacts
+schemas/telemetry/   Versioned telemetry schemas
+infra/               Prometheus, Grafana, and Tempo configuration
+ROADMAP.md           Project phases, status, and remaining work
+```
+
+## Requirements and setup
+
+Python 3.11 is the documented local environment. From the repository root:
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install --index-url https://download.pytorch.org/whl/cpu torch
+python -m pip install -r requirements/base.txt
+```
+
+On Windows PowerShell, create and activate the environment with:
 
 ```powershell
-# 1. Môi trường (Python 3.11)
 py -3.11 -m venv .venv
-.venv\Scripts\activate
-
-# 2. Torch CPU-only TRƯỚC (nếu không pip sẽ kéo bản CUDA ~2.5GB vô ích)
-pip install --index-url https://download.pytorch.org/whl/cpu torch
-
-# 3. Phần còn lại
-pip install -r requirements/base.txt
-
-# 4. Cấu hình
-copy .env.example .env
-#    mở .env và điền OPENROUTER_API_KEY
-
-# 5. Kiểm tra môi trường
-python practice/00_setup/00_env_check.py
+.venv\Scripts\Activate.ps1
 ```
 
----
+If using an OpenRouter-backed model, copy `.env.example` to `.env` and set
+`OPENROUTER_API_KEY`. Keep secrets out of source control.
 
-## Cấu trúc repo
+## Run locally
 
-```
-ROADMAP.md              ← đọc file này trước
-docs/                   hướng dẫn chi tiết từng phase
-  00_setup.md               Phase 0 — nền móng
-  01_evaluation.md          Phase 1 — eval harness
-  02_prompt_optimization.md Phase 2 — tối ưu prompt
-  03_ab_testing.md          Phase 3 — A/B testing
-  04_serving.md             Phase 4 — MLflow + FastAPI
-  05_observability.md       Phase 5 — OTel/Prometheus/Grafana
-  06_async_celery.md        Phase 6 — Celery
-  07_production.md          Phase 7 — ghép & deploy
-  CV_TALKING_POINTS.md      cách kể project khi phỏng vấn
+Run the Streamlit interface:
 
-practice/               code học từng feature, chạy độc lập
-  common.py                 hạ tầng dùng chung — ĐỌC TRƯỚC
-  00_setup/ ... 06_async/   practice theo phase
-
-src/                    hệ thống thật (bạn tự viết theo hướng dẫn trong docs/)
-infra/                  cấu hình Prometheus / Grafana / Tempo
-requirements/           dependency có pin version
-data/                   tài liệu nguồn
-eval_data/              golden dataset cho evaluation
+```bash
+streamlit run src/app.py
 ```
 
----
+Run the command-line interface:
 
-## Cách học
-
-1. Đọc `docs/0X_*.md` của phase.
-2. Chạy từng file trong `practice/0X_*/` theo thứ tự số — mỗi file dạy **một** khái niệm.
-3. Làm phần `# ===== BÀI TẬP =====` ở cuối mỗi file.
-4. Theo mục "Ghép vào hệ thống" trong guide để tự viết code trong `src/`.
-5. Check **Definition of Done** trước khi sang phase tiếp.
-
-```powershell
-python practice/00_setup/00_env_check.py
-python practice/00_setup/01_openrouter_hello.py
-python practice/00_setup/02_local_embedding.py
-python practice/00_setup/03_embedding_compare.py
+```bash
+python -m src.app_cli
 ```
 
----
+Run the FastAPI service:
 
-## Evaluation harness nguồn thật
-
-Harness reproducible với 20 case từ source project, 30 mẫu SQuAD Hugging Face cho
-improvement và 30 mẫu holdout riêng cho validation nằm tại
-[`docs/evaluation_harness.md`](docs/evaluation_harness.md). Dữ liệu Hugging Face không
-được commit; manifest ghim revision, provenance và hash từng row, và chạy sẽ fail rõ
-ràng nếu nguồn thật không tải được.
-
----
-
-## Chạy hệ thống hiện tại
-
-```powershell
-streamlit run src/app.py     # giao diện web
-python -m src.app_cli        # giao diện dòng lệnh
-mlflow ui --backend-store-uri sqlite:///mlflow.db
+```bash
+uvicorn src.server:app --reload --port 8000
 ```
 
----
+The API health endpoint is `http://localhost:8000/api/health`; its OpenAPI page is
+`http://localhost:8000/docs`. Run the React console separately:
 
-## Kết quả đo được
+```bash
+cd frontend
+npm ci
+npm run dev
+```
 
-> Điền dần qua các phase. Bảng này là thứ đi vào CV.
+The frontend reads its backend base URL from `VITE_BACKEND_URL` (see
+`frontend/vite.config.ts`).
 
-| Chỉ số | Baseline | Champion | Cải thiện |
-|---|---|---|---|
-| Hit Rate @5 | — | — | — |
-| NDCG @5 | — | — | — |
-| Faithfulness | — | — | — |
-| p95 latency | — | — | — |
-| Cost / 1000 query | — | — | — |
+## Evaluation
 
----
+The evaluation harness has three source-defined modes: a 20-case checked-in smoke
+set, 30 SQuAD improvement cases, and a disjoint 30-case SQuAD validation set. The
+Hugging Face rows are fetched at runtime and checked against the pinned manifest;
+they are not silently replaced with generated examples. See
+[`docs/evaluation_harness.md`](docs/evaluation_harness.md) for provenance and API
+usage, and [`eval_data/manifests/evaluation_manifest.json`](eval_data/manifests/evaluation_manifest.json)
+for the selected data.
 
-## Stack
+Retrieval evaluation provides deterministic Hit Rate, Precision, Recall, MRR, and
+nDCG metrics. The harness does not by itself establish generation quality or a
+winning production configuration. Keep measured results tied to saved run artifacts
+and held-out validation.
 
-**RAG**: LangChain · Qdrant adapter · sentence-transformers (local embedding) · OpenRouter (LLM)
+## RAG architecture
 
-The RAG foundation lives in `src/rag/`: ingestion and source metadata, LangChain
-splitting, local embeddings, dense/BM25 retrieval, reciprocal-rank fusion,
-optional cross-encoder reranking, and answer generation are explicit components.
-`RAGPipeline` returns ranked `RetrievedSource` metadata with every answer and
-keeps configuration immutable per instance. See `docs/rag_core.md` for the
-smallest end-to-end example.
-**Eval & Experiment**: MLflow · LLM-as-judge tự viết · bootstrap CI
-**Serving**: FastAPI · MLflow Model Registry · SSE streaming
-**Observability**: OpenTelemetry · Prometheus · Grafana · Tempo · structlog
-**Async**: Celery · Redis
+The RAG components in `src/rag/` separate ingestion, splitting, embeddings,
+retrieval, generation, evaluation, and lineage. The pipeline supports dense and
+BM25 retrieval, reciprocal-rank fusion, optional cross-encoder reranking, and
+ranked source metadata. See [`docs/rag_core.md`](docs/rag_core.md) for the design
+and a minimal example.
+
+Prompt optimization code and the frozen-evidence GEPA adapter live in
+`src/rag/optimization/`; implementation notes are in [`docs/gepa.md`](docs/gepa.md).
+The lineage and promotion contracts are in `src/rag/lineage.py`.
+
+## Docker services
+
+Docker Compose configuration is provided for the API, frontend, Streamlit,
+MLflow, Qdrant, Redis, Prometheus, Grafana, and Tempo:
+
+```bash
+docker compose up --build
+```
+
+This starts the configured services; it does not imply that every planned workflow
+is complete. In particular, verify ingestion persistence, worker behavior, and
+end-to-end telemetry before using the stack as a production deployment. The local
+service URLs and launcher notes are in `start_docker.sh` and `start_docker.bat`.
+
+## Guides
+
+- [Setup](docs/00_setup.md)
+- [Evaluation](docs/01_evaluation.md)
+- [Prompt optimization](docs/02_prompt_optimization.md)
+- [A/B testing](docs/03_ab_testing.md)
+- [Serving](docs/04_serving.md)
+- [Observability](docs/05_observability.md)
+- [RAG architecture](docs/rag_core.md)
+- [Source-backed evaluation harness](docs/evaluation_harness.md)
+- [Telemetry contracts](docs/telemetry_contracts.md)
+
+Some older phase guides describe the original learning plan and may mention practice
+files or planned modules that are not present in the current repository. The roadmap
+tracks current implementation status.
+
+## Technology
+
+- **RAG:** LangChain, Qdrant client, sentence-transformers, OpenRouter-compatible chat models
+- **Evaluation and optimization:** Python metrics, MLflow, GEPA
+- **Serving and UI:** FastAPI, Streamlit, React, TypeScript
+- **Observability:** OpenTelemetry, Prometheus, Grafana, Tempo, structured logging
+- **Async infrastructure:** Celery and Redis dependencies/configuration (worker workflow remains planned)

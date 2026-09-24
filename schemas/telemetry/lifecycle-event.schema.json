@@ -74,7 +74,7 @@
         "event_version": {"const": "1.0"}, "occurred_at": {"type": "string", "format": "date-time"},
         "request_id": {"type": "string", "minLength": 1, "maxLength": 128}, "run_id": {"type": "string", "minLength": 1, "maxLength": 128}, "trace_id": {"type": ["string", "null"], "maxLength": 128},
         "retrieval_strategy": {"enum": ["bm25_only", "bm25_reranker", "dense", "hybrid"]}, "prompt_version": {"type": "string", "minLength": 1, "maxLength": 128}, "model_version": {"type": "string", "minLength": 1, "maxLength": 128}, "dataset_split": {"enum": ["train", "validation", "test", "production", "unknown"]}, "latency_ms": {"type": ["number", "null"], "minimum": 0}, "outcome": {"const": "error"},
-        "stage": {"enum": ["retrieve", "rerank", "generate", "query", "ingest"]}, "error_type": {"enum": ["timeout", "upstream", "validation", "retrieval", "generation", "unknown"]}, "error_code": {"type": ["string", "null"], "maxLength": 128}, "retryable": {"type": "boolean"}
+        "stage": {"enum": ["upload", "parse", "chunk", "embed", "index", "retrieve", "rerank", "generate", "query", "ingest"]}, "error_type": {"enum": ["timeout", "upstream", "validation", "retrieval", "generation", "unknown"]}, "error_code": {"type": ["string", "null"], "maxLength": 128}, "retryable": {"type": "boolean"}
       }
     }
   }

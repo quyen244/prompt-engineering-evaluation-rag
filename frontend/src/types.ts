@@ -23,6 +23,8 @@ export interface SourceEvidence {
 export interface QueryRequest {
   question: string;
   datasetId?: string;
+  documentIds?: string[];
+  topK?: number;
   promptId?: string;
   modelId?: string;
   runId?: string;
@@ -33,6 +35,7 @@ export interface QueryResponse {
   answer: string;
   evidence: SourceEvidence[];
   datasetId?: string;
+  documentIds?: string[];
   promptId?: string;
   modelId?: string;
   runId?: string;
@@ -44,7 +47,7 @@ export interface QueryStreamEvent {
   type: 'token' | 'evidence' | 'metadata' | 'done' | 'error';
   value?: string;
   evidence?: SourceEvidence[];
-  metadata?: Pick<QueryResponse, 'datasetId' | 'promptId' | 'modelId' | 'runId' | 'traceId'>;
+  metadata?: Pick<QueryResponse, 'datasetId' | 'documentIds' | 'promptId' | 'modelId' | 'runId' | 'traceId'>;
   message?: string;
 }
 

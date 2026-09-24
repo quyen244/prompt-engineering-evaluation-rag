@@ -5,7 +5,10 @@ make schema drift visible during review.
 """
 
 RETRIEVAL_STRATEGIES = frozenset({"bm25_only", "bm25_reranker", "dense", "hybrid"})
-RETRIEVAL_STAGES = frozenset({"retrieve", "rerank", "generate", "query", "ingest"})
+RETRIEVAL_STAGES = frozenset({
+    "upload", "parse", "chunk", "embed", "index", "retrieve", "rerank",
+    "generate", "query", "ingest",
+})
 OUTCOMES = frozenset({"success", "no_answer", "error", "timeout", "cancelled"})
 DATASET_SPLITS = frozenset({"train", "validation", "test", "production", "unknown"})
 EVENT_TYPES = frozenset({"request", "retrieval", "generation", "evaluation", "error", "document_experiment"})

@@ -24,6 +24,9 @@ export interface RagApi {
   query(request: QueryRequest): Promise<QueryResponse>;
   streamQuery(request: QueryRequest): AsyncGenerator<QueryStreamEvent>;
   listDocuments(): Promise<DocumentRecord[]>;
+  listIndexedDocuments(): Promise<DocumentRecord[]>;
+  ingestDocument(data: { name: string; content: string; version?: string }): Promise<DocumentRecord>;
+  uploadDocument(file: File): Promise<DocumentRecord>;
   documentHistory(documentId?: string): Promise<DocumentHistoryEntry[]>;
   listExperiments(): Promise<ExperimentRecord[]>;
   listPrompts(): Promise<PromptVersion[]>;
@@ -40,6 +43,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiUnavailableError(`API request failed (${response.status}).`);
   }
   return response.json() as Promise<T>;
+}
+
+async function uploadDocument(file: File): Promise<DocumentRecord> {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await fetch('/api/documents/upload', { method: 'POST', body: form });
+  if (!response.ok) throw new ApiUnavailableError(`PDF upload failed (${response.status}).`);
+  return response.json() as Promise<DocumentRecord>;
 }
 
 async function* streamQuery(requestBody: QueryRequest): AsyncGenerator<QueryStreamEvent> {
@@ -75,6 +86,9 @@ export const api: RagApi = {
   query: (body) => request<QueryResponse>('/query', { method: 'POST', body: JSON.stringify(body) }),
   streamQuery: (body) => streamQuery(body),
   listDocuments: () => request<DocumentRecord[]>('/documents'),
+  listIndexedDocuments: () => request<DocumentRecord[]>('/documents/indexed'),
+  ingestDocument: (data) => request<DocumentRecord>('/documents', { method: 'POST', body: JSON.stringify(data) }),
+  uploadDocument,
   documentHistory: (documentId) => request<DocumentHistoryEntry[]>(`/documents/history${documentId ? `?documentId=${encodeURIComponent(documentId)}` : ''}`),
   listExperiments: () => request<ExperimentRecord[]>('/experiments'),
   listPrompts: () => request<PromptVersion[]>('/prompts'),

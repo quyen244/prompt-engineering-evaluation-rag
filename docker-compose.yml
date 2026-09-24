@@ -1,0 +1,154 @@
+services:
+  # 1. FastAPI REST API Gateway & Metrics Exporter
+  rag-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: rag-api
+    command: uvicorn src.server:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_EMBED_MODEL=${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
+      - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-qwen3.5:4b}
+      - QDRANT_URL=http://qdrant:6333
+      - UPLOAD_DIR=/data/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data/uploads:/data/uploads
+    depends_on:
+      - tempo
+      - qdrant
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # 2. React Lab Console (Vite Frontend)
+  rag-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rag-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_BACKEND_URL=http://rag-api:8000
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # 3. Streamlit Interactive Demo UI
+  rag-streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-streamlit
+    command: streamlit run src/app.py --server.port 8501 --server.address 0.0.0.0
+    ports:
+      - "8501:8501"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # 4. MLflow Tracking & Prompt Registry UI
+  rag-mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-mlflow
+    command: mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow.db
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlruns:/app/mlruns
+      - ./mlflow.db:/app/mlflow.db
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # 5. Grafana Tempo (Distributed Tracing OTLP Sink)
+  tempo:
+    image: grafana/tempo:latest
+    container_name: rag-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./infra/tempo/tempo.yaml:/etc/tempo.yaml:ro
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # 6. Prometheus (Metrics Scraper & Alert Evaluation)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: rag-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # 7. Grafana Dashboard (Visual Analytics & Tracing UI)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: rag-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - tempo
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # 8. Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: rag-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+  # 9. Redis Task Broker
+  redis:
+    image: redis:8-alpine
+    container_name: rag-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - rag-network
+    restart: unless-stopped
+
+networks:
+  rag-network:
+    driver: bridge
+
+volumes:
+  qdrant_storage:
