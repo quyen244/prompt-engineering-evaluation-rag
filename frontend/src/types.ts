@@ -62,6 +62,14 @@ export interface DocumentRecord {
   isDemo?: boolean;
 }
 
+export interface IngestJob {
+  taskId: string;
+  status: 'queued' | 'started' | 'completed' | 'failed';
+  name?: string;
+  document?: DocumentRecord & { chunkCount?: number; processingSeconds?: number };
+  error?: string;
+}
+
 export interface DocumentHistoryEntry {
   entryId: string;
   documentId: string;

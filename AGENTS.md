@@ -20,4 +20,5 @@ When updating this file, preserve this bar for all agents and keep entries conci
 ## Project notes
 
 - Run the self-contained telemetry contracts with `python3 -m unittest discover -s tests -v`.
+- Every evaluation experiment must be tracked in MLflow, including its configuration, dataset and model provenance, measured metrics, and run artifacts, so results are reproducible; never present untracked or synthetic values as experiment results.
 - Privacy-safe observability contracts, schema versions, dashboard, alerts, and sink configuration are owned by `docs/telemetry_contracts.md`, `src/telemetry/`, `schemas/telemetry/`, and `infra/`; keep raw request, prompt, answer, credential, and stack-trace content outside all telemetry sinks.

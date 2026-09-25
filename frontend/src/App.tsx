@@ -5,6 +5,7 @@ import type {
   DocumentRecord,
   ExperimentRecord,
   HealthResponse,
+  IngestJob,
   MonitoringSnapshot,
   PromptVersion,
   QueryResponse,
@@ -131,17 +132,31 @@ function DocumentsView() {
   const [docContent, setDocContent] = useState('');
   const [docFile, setDocFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [ingestStatus, setIngestStatus] = useState('');
 
   const handleIngest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!docFile && (!docName.trim() || !docContent.trim())) return;
     setSubmitting(true);
     try {
-      if (docFile) await api.uploadDocument(docFile);
-      else await api.ingestDocument({ name: docName.trim(), content: docContent.trim() });
+      if (docFile) {
+        let job: IngestJob = await api.uploadDocument(docFile);
+        setIngestStatus('Queued for background ingestion');
+        const ingestionDeadline = Date.now() + 30 * 60 * 1000;
+        while (job.status === 'queued' || job.status === 'started') {
+          if (Date.now() >= ingestionDeadline) throw new Error('PDF ingestion timed out while waiting for the worker.');
+          await new Promise((resolve) => window.setTimeout(resolve, 1000));
+          job = await api.ingestJob(job.taskId);
+          setIngestStatus(job.status === 'started' ? 'Extracting, embedding, and indexing PDF' : 'Waiting for worker');
+        }
+        if (job.status !== 'completed') throw new Error(job.error || 'PDF ingestion failed.');
+      } else {
+        await api.ingestDocument({ name: docName.trim(), content: docContent.trim() });
+      }
       setDocName('');
       setDocContent('');
       setDocFile(null);
+      setIngestStatus('');
       setShowForm(false);
       void retry();
     } catch (err) {
@@ -198,6 +213,7 @@ function DocumentsView() {
               Cancel
             </button>
           </div>
+          {ingestStatus && <div role="status" aria-live="polite" style={{ color: '#9ca3af', fontSize: '0.85rem' }}>{ingestStatus}</div>}
         </form>
       )}
 

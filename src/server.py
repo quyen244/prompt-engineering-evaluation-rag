@@ -22,7 +22,16 @@ from src.telemetry.middleware import RequestIdMiddleware
 from src.telemetry.request_id import get_request_id, get_run_id
 from src.telemetry.tracing import current_trace_id
 from src.telemetry.tracing import mark_span_error, setup_tracing, span
-from src.telemetry.metrics import record_error, record_ingestion, record_stage_duration
+from src.telemetry.metrics import (
+    CONTEXT_TOKENS,
+    RAG_NO_ANSWER,
+    RAG_TOP_SCORE,
+    record_cost,
+    record_error,
+    record_ingestion,
+    record_llm_call,
+    record_stage_duration,
+)
 
 setup_tracing("rag-api")
 
@@ -38,6 +47,13 @@ app = FastAPI(
     description="Production-grade RAG serving gateway with OpenTelemetry, Prometheus metrics, and streaming query endpoints.",
     version="0.1.0",
 )
+
+SYSTEM_PROMPT = (
+    "Answer the user's question using only the supplied source excerpts. "
+    "Cite claims inline as [Source 1], [Source 2], etc. "
+    "If the excerpts do not contain the answer, say so clearly. Be concise."
+)
+USER_PROMPT_TEMPLATE = "Question: {question}\n\nSource excerpts:\n{context}"
 
 # Add CORS Middleware
 app.add_middleware(
@@ -241,6 +257,7 @@ def _ensure_collection(vector_size: int) -> None:
 def _ingest_pdf(name: str, raw: bytes) -> dict[str, Any]:
     if not raw:
         raise ValueError("uploaded file is empty")
+    _ensure_documents_loaded()
     digest = hashlib.sha256(raw).hexdigest()
     document_id = f"doc-{digest[:20]}"
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -341,21 +358,35 @@ _EVAL_DATA_INITIALIZED = False
 
 def _ensure_documents_loaded() -> None:
     global _EVAL_DATA_INITIALIZED
-    if _EVAL_DATA_INITIALIZED:
-        return
     if DOCUMENT_MANIFEST.is_file():
         try:
             records = json.loads(DOCUMENT_MANIFEST.read_text(encoding="utf-8"))
             if isinstance(records, list):
                 known = {item.get("documentId") for item in _STORED_DOCUMENTS}
-                _STORED_DOCUMENTS.extend(item for item in records if item.get("documentId") not in known)
+                positions = {item.get("documentId"): index for index, item in enumerate(_STORED_DOCUMENTS)}
+                for item in records:
+                    document_id = item.get("documentId")
+                    if not document_id:
+                        continue
+                    if document_id in positions:
+                        _STORED_DOCUMENTS[positions[document_id]] = item
+                    else:
+                        positions[document_id] = len(_STORED_DOCUMENTS)
+                        _STORED_DOCUMENTS.append(item)
+                        known.add(document_id)
         except (OSError, json.JSONDecodeError):
             pass
+    if _EVAL_DATA_INITIALIZED:
+        return
     eval_data_dir = Path("eval_data")
     if eval_data_dir.exists():
+        known = {item.get("documentId") for item in _STORED_DOCUMENTS}
         for file in eval_data_dir.glob("*.jsonl"):
+            document_id = f"doc-{file.stem}"
+            if document_id in known:
+                continue
             _STORED_DOCUMENTS.append({
-                "documentId": f"doc-{file.stem}",
+                "documentId": document_id,
                 "name": file.name,
                 "version": "v1.0",
                 "checksum": "e3b0c44298fc",
@@ -364,6 +395,7 @@ def _ensure_documents_loaded() -> None:
                 "status": "completed",
                 "isDemo": False,
             })
+            known.add(document_id)
     _EVAL_DATA_INITIALIZED = True
 
 
@@ -435,29 +467,54 @@ async def ingest_document(req: IngestDocumentRequest) -> dict[str, Any]:
     return record
 
 
-@app.post("/api/documents/upload")
+@app.post("/api/documents/upload", status_code=202)
 async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
-    """Upload, extract, embed, and persist a PDF in Qdrant."""
+    """Store a PDF and enqueue extraction, embedding, and indexing."""
     if not file.filename or Path(file.filename).suffix.lower() != ".pdf":
         raise HTTPException(status_code=415, detail="Only PDF uploads are supported")
     try:
-        with span("rag.ingestion"):
-            upload_started = time.perf_counter()
-            with span("rag.upload"):
-                raw = await file.read()
-            record_stage_duration("upload", time.perf_counter() - upload_started, "dense")
-            record = await asyncio.to_thread(_ingest_pdf, file.filename, raw)
-        record_ingestion("success", chunk_count=record["chunkCount"])
-        return record
-    except (ValueError, RuntimeError) as exc:
-        record_ingestion("error")
-        record_error("upload", "upstream" if isinstance(exc, RuntimeError) else "validation")
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        upload_started = time.perf_counter()
+        raw = await file.read()
+        if not raw:
+            raise HTTPException(status_code=422, detail="Uploaded PDF is empty")
+        from src.celery_app import celery_app
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        job_id = uuid.uuid4().hex
+        staged_path = UPLOAD_DIR / f"ingest-{job_id}.pdf"
+        staged_path.write_bytes(raw)
+        try:
+            task = celery_app.send_task(
+                "src.tasks.ingest_pdf",
+                args=[str(staged_path), Path(file.filename).name],
+                task_id=job_id,
+            )
+        except Exception:
+            staged_path.unlink(missing_ok=True)
+            raise
+        record_stage_duration("upload", time.perf_counter() - upload_started, "dense")
+        return {"taskId": task.id, "status": "queued", "name": Path(file.filename).name}
+    except HTTPException:
+        raise
     except Exception as exc:
         record_ingestion("error")
-        record_error("upload", "unknown")
-        # Do not return provider internals or stack traces to callers.
-        raise HTTPException(status_code=422, detail=f"PDF ingestion failed: {type(exc).__name__}") from exc
+        record_error("upload", "upstream")
+        raise HTTPException(status_code=503, detail="PDF ingestion queue is unavailable") from exc
+
+
+@app.get("/api/ingest-jobs/{task_id}")
+def get_ingest_job(task_id: str) -> dict[str, Any]:
+    """Return a bounded public status for an asynchronous ingestion job."""
+    from celery.result import AsyncResult
+    from src.celery_app import celery_app
+
+    result = AsyncResult(task_id, app=celery_app)
+    if result.state == "SUCCESS":
+        return {"taskId": task_id, "status": "completed", "document": result.result}
+    if result.state == "FAILURE":
+        # The task result can contain private provider details; expose only a category.
+        return {"taskId": task_id, "status": "failed", "error": "PDF ingestion failed"}
+    status = "started" if result.state == "STARTED" else "queued"
+    return {"taskId": task_id, "status": status}
 
 
 
@@ -578,6 +635,16 @@ async def list_prompts() -> list[dict[str, Any]]:
     return prompts
 
 
+@app.get("/api/prompts/current")
+def current_prompt() -> dict[str, str]:
+    """Return the exact prompt templates used by the live Ollama query path."""
+    return {
+        "modelId": OLLAMA_CHAT_MODEL,
+        "systemPrompt": SYSTEM_PROMPT,
+        "userPromptTemplate": USER_PROMPT_TEMPLATE,
+    }
+
+
 @app.get("/api/runs")
 async def list_runs() -> list[dict[str, Any]]:
     return [
@@ -643,6 +710,7 @@ def _run_query_pipeline(req: QueryRequest, req_id: str) -> QueryResponse:
         sources = [point for point in results if point.payload and point.payload.get("text")]
         if not sources:
             raise HTTPException(status_code=404, detail="No matching indexed source content was found")
+        RAG_TOP_SCORE.labels(retrieval_strategy="dense").observe(float(sources[0].score))
         evidence = [SourceEvidence(
             sourceId=str(point.id),
             documentId=str(point.payload.get("document_id", "")),
@@ -663,8 +731,8 @@ def _run_query_pipeline(req: QueryRequest, req_id: str) -> QueryResponse:
                 json={
                     "model": OLLAMA_CHAT_MODEL,
                     "messages": [
-                        {"role": "system", "content": "Answer the user's question using only the supplied source excerpts. Cite claims inline as [Source 1], [Source 2], etc. If the excerpts do not contain the answer, say so clearly. Be concise."},
-                        {"role": "user", "content": f"Question: {req.question}\n\nSource excerpts:\n{context}"},
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": USER_PROMPT_TEMPLATE.format(question=req.question, context=context)},
                     ],
                     "think": False,
                     "stream": False,
@@ -673,10 +741,25 @@ def _run_query_pipeline(req: QueryRequest, req_id: str) -> QueryResponse:
                 timeout=300,
             )
             response.raise_for_status()
-            answer = response.json().get("message", {}).get("content", "").strip()
+            generation = response.json()
+            answer = generation.get("message", {}).get("content", "").strip()
         record_stage_duration("generate", time.perf_counter() - generation_started, "dense")
         if not answer:
             raise RuntimeError("Ollama returned an empty answer")
+        CONTEXT_TOKENS.observe(int(generation.get("prompt_eval_count", 0)))
+        record_llm_call(
+            OLLAMA_CHAT_MODEL,
+            int(generation.get("prompt_eval_count", 0)),
+            int(generation.get("eval_count", 0)),
+        )
+        # Ollama runs locally here, so its inference cost is known to be zero.
+        record_cost(OLLAMA_CHAT_MODEL, 0.0)
+        normalized_answer = answer.casefold()
+        if any(phrase in normalized_answer for phrase in (
+            "excerpts do not contain", "sources do not contain",
+            "cannot answer based on", "not enough information in the excerpts",
+        )):
+            RAG_NO_ANSWER.inc()
     except HTTPException:
         raise
     except httpx.HTTPError as exc:

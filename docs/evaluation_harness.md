@@ -41,7 +41,78 @@ run writes one JSONL file under `eval_data/results/` and appends document retrie
 run-completion events to `eval_data/experiment_history.jsonl`; history is append-only.
 `paired_compare(left, right)` compares the same case IDs without unpaired averages.
 
+### Reusable Top-K ablation CLI
+
+The CLI runs out of the box with a BM25 baseline over repository text files;
+the smoke dataset's cited source files are the relevance labels, and evaluation
+data/output folders are excluded from the corpus. To test the application's own retriever, inject a
+callable with signature
+`factory(config: EvalConfig, options: dict) -> retriever`; the returned object
+must support LangChain-style `invoke(question)` and return documents with stable
+IDs matching the evaluation cases' `relevant_document_ids`.
+
+```powershell
+python -m scripts.run_retrieval_ablation `
+  --mode smoke `
+  --top-k 3 5 10 `
+  --experiment local-retrieval-ablation `
+  --tracking-uri sqlite:///mlflow.db
+```
+
+The default uses `scripts.project_bm25_factory:build_retriever`. To compare
+another implementation, pass `--factory my_project.eval:build_retriever`. The
+factory receives a separate `EvalConfig` for each Top-K value, so it can
+inject a dense, hybrid, or reranked implementation. Run a reranker ablation by
+repeating the command with factory options such as `{"reranker":"cross-encoder"}`;
+embedding comparisons use `--embedding` and require a compatible indexed corpus.
+Each variant is a separate MLflow run in one experiment, tagged with a shared
+study ID and immutable dataset/manifest fingerprints. Metrics, configuration,
+per-case ranks and scores, and the evaluation manifest are logged as artifacts.
+The CLI refuses to fall back to a mock retriever or fabricate scores.
+
+For the local dense embedding matrix, use the injected
+`scripts.project_embedding_factory:build_retriever`. The factory supports an
+installed Ollama model (`ollama:<model-name>`) and a locally cached Hugging Face
+SentenceTransformer checkpoint pinned by revision (`huggingface:<model>@<revision>`).
+It logs the evaluation-corpus fingerprint and resolved model digests in MLflow.
+For example, this crosses both local models with Top-K 5, 10, and 20:
+
+```powershell
+docker compose exec -T rag-mlflow python -m scripts.run_retrieval_ablation `
+  --factory scripts.project_embedding_factory:build_retriever `
+  --mode smoke `
+  --top-k 5 10 20 `
+  --embedding huggingface:intfloat/multilingual-e5-base@d128750597153bb5987e10b1c3493a34e5a4502a ollama:qwen3-embedding:0.6b `
+  --retriever dense `
+  --experiment rag-embedding-topk-ablation `
+  --tracking-uri http://localhost:5000
+```
+
 Metrics are deterministic binary-relevance Hit Rate, Precision, Recall, MRR, and nDCG
 in `src/eval/metrics/retrieval.py`. Retrieval IDs must come from LangChain Document
 metadata (`document_id`, `doc_id`, `id`, or `source`); a document without a stable ID
 fails rather than receiving an invented ID.
+
+### PDF ingestion sync-vs-Celery measurement
+
+PDF upload returns a Celery task ID immediately. Poll `GET /api/ingest-jobs/{taskId}` for
+`queued`, `started`, `completed`, or `failed`; the worker and API share the uploads volume.
+Redis is the Celery broker/result backend, and `rag-worker` performs parse, embedding, and
+Qdrant indexing. The synchronous `_ingest_pdf` implementation remains the baseline path.
+
+After the Compose services are healthy, run the paired measurement from the MLflow
+container (which has the project's MLflow client and service-network access):
+
+```powershell
+docker compose exec rag-mlflow python -m scripts.benchmark_pdf_ingestion `
+  --pdf /data/uploads/doc-638ae8e8274ae239a427-cs229-probability_review.pdf `
+  --trials 3 `
+  --tracking-uri http://localhost:5000
+```
+
+The command performs alternating-order sync and real broker/worker trials against the same
+PDF and Qdrant collection. MLflow records the PDF SHA-256 and size, embedding model,
+configuration, each trial's enqueue, worker, and end-to-end latency, and a paired summary.
+It does not record PDF text. The result is meaningful only when Redis, Qdrant, Ollama, and
+the Celery worker are available; a failed dependency aborts the comparison rather than
+substituting synthetic measurements.

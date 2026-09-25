@@ -53,4 +53,35 @@ describe('RAG Lab console', () => {
     expect((statistics as HTMLInputElement).checked).toBe(false);
     expect(queryBody).toHaveBeenCalledWith({ question: 'What is Bayes theorem?', documentIds: ['doc-a'], topK: 3 });
   });
+
+  it('uploads a PDF, polls its background job, and refreshes documents on completion', async () => {
+    let completed = false;
+    let polls = 0;
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/health')) return Promise.resolve(Response.json({ status: 'ok', service: 'rag', checkedAt: 'now' }));
+      if (url.endsWith('/api/documents') && init?.method !== 'POST') return Promise.resolve(Response.json(completed ? [
+        { documentId: 'doc-uploaded', name: 'Ingested.pdf', version: 'v1', createdAt: 'now', experimentIds: [], status: 'completed' },
+      ] : []));
+      if (url.endsWith('/api/documents/history')) return Promise.resolve(Response.json([]));
+      if (url.endsWith('/api/documents/upload')) return Promise.resolve(Response.json({ taskId: 'task-1', status: 'queued', name: 'Ingested.pdf' }, { status: 202 }));
+      if (url.endsWith('/api/ingest-jobs/task-1')) {
+        polls += 1;
+        if (polls === 1) return Promise.resolve(Response.json({ taskId: 'task-1', status: 'started' }));
+        completed = true;
+        return Promise.resolve(Response.json({ taskId: 'task-1', status: 'completed', document: { documentId: 'doc-uploaded' } }));
+      }
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    }));
+
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Documents' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Ingest document/ }));
+    const file = new File(['%PDF-test'], 'Ingested.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText('Upload a PDF for local indexing'), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ingest into Knowledge Base' }));
+
+    expect(await screen.findByText('Ingested.pdf', {}, { timeout: 5000 })).toBeTruthy();
+    expect(polls).toBe(2);
+  });
 });

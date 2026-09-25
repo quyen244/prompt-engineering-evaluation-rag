@@ -143,4 +143,65 @@ tracks current implementation status.
 - **Evaluation and optimization:** Python metrics, MLflow, GEPA
 - **Serving and UI:** FastAPI, Streamlit, React, TypeScript
 - **Observability:** OpenTelemetry, Prometheus, Grafana, Tempo, structured logging
-- **Async infrastructure:** Celery and Redis dependencies/configuration (worker workflow remains planned)
+- **Async infrastructure:** Celery + Redis PDF ingestion worker
+
+## Measured Experiments
+
+### Local Embedding A/B Study
+
+On September 25, 2026, a paired six-run study compared the pinned local Hugging Face
+`intfloat/multilingual-e5-base` checkpoint with Ollama `qwen3-embedding:0.6b` at
+Top-K 5, 10, and 20.
+All variants used the same 20 source-backed project cases and the same fingerprinted
+corpus of 113 files / 467 chunks (`9e2d36538c04d6d4...`).
+MLflow experiment: `rag-embedding-topk-ablation-2026-09-25`, study ID
+`6e138eddd2c745709942a82c0ac3c170`.
+
+| Embedding | Top-K | Hit Rate | Precision | Recall | MRR | nDCG |
+|---|---:|---:|---:|---:|---:|---:|
+| Hugging Face multilingual-e5-base | 5 | 0.7500 | 0.1500 | 0.7500 | 0.5767 | 0.6190 |
+| Hugging Face multilingual-e5-base | 10 | 0.9000 | 0.0900 | 0.9000 | 0.5944 | 0.6651 |
+| Hugging Face multilingual-e5-base | 20 | 1.0000 | 0.0500 | 1.0000 | 0.6010 | 0.6900 |
+| Ollama qwen3-embedding:0.6b | 5 | 0.3000 | 0.0600 | 0.3000 | 0.1725 | 0.2040 |
+| Ollama qwen3-embedding:0.6b | 10 | 0.5500 | 0.0550 | 0.5500 | 0.2069 | 0.2859 |
+| Ollama qwen3-embedding:0.6b | 20 | 0.8500 | 0.0425 | 0.8500 | 0.2282 | 0.3624 |
+
+At Top-K 5, multilingual-e5-base improved hit rate and recall by 45 percentage
+points (150% relative) over the current Qwen3 embedding on this dataset.
+At Top-K 20, it reached 100% hit rate and recall, while precision fell to 5% because
+the retriever returned more non-relevant sources.
+Increasing Top-K from 5 to 20 for multilingual-e5-base raised recall from 75% to
+100% but lowered precision from 15% to 5%.
+For this small project-source evaluation, multilingual-e5-base is the stronger
+retrieval candidate, while Top-K 10 is a reasonable recall/precision compromise to
+validate against the untouched holdout before changing the serving default.
+These are retrieval-only measurements; generation quality and latency were not
+measured in this study.
+See [`docs/evaluation_harness.md`](docs/evaluation_harness.md) for the runnable,
+MLflow-tracked command.
+
+### PDF Ingestion with Celery
+
+PDF uploads now return an accepted job ID while Redis queues extraction, embedding,
+and Qdrant indexing for the `rag-worker` service.
+The real `cs229-probability_review.pdf` (SHA-256
+`638ae8e8274ae239a4272a55b296a8c3...`, 91 chunks) was used for three alternating-order
+synchronous/Celery pairs, all tracked in MLflow experiment
+`rag-pdf-ingestion-ablation-2026-09-25` (parent run
+`4525a1ff6e4a47f0b4f101cce5095d4a`).
+
+| Measurement | Synchronous | Celery |
+|---|---:|---:|
+| Mean end-to-end ingestion | 21.912 s | 21.564 s |
+| Median end-to-end ingestion | 21.547 s | 21.539 s |
+| Mean queue admission | n/a | 0.028 s |
+| Mean worker processing | n/a | 21.318 s |
+
+The median end-to-end difference was only 0.04% lower with Celery, so this small
+three-pair run does not establish a processing speedup.
+The API accepted the upload in about 28 ms on average and returned while the roughly
+21-second workload ran in the worker, which is the measured responsiveness benefit.
+The 1.6% lower Celery mean is sensitive to the first synchronous trial and is not
+claimed as a robust latency reduction.
+See [`docs/evaluation_harness.md`](docs/evaluation_harness.md) for the runnable
+benchmark and job-status API.

@@ -3,6 +3,7 @@ import type {
   DocumentRecord,
   ExperimentRecord,
   HealthResponse,
+  IngestJob,
   MonitoringSnapshot,
   PromptVersion,
   QueryRequest,
@@ -26,7 +27,8 @@ export interface RagApi {
   listDocuments(): Promise<DocumentRecord[]>;
   listIndexedDocuments(): Promise<DocumentRecord[]>;
   ingestDocument(data: { name: string; content: string; version?: string }): Promise<DocumentRecord>;
-  uploadDocument(file: File): Promise<DocumentRecord>;
+  uploadDocument(file: File): Promise<IngestJob>;
+  ingestJob(taskId: string): Promise<IngestJob>;
   documentHistory(documentId?: string): Promise<DocumentHistoryEntry[]>;
   listExperiments(): Promise<ExperimentRecord[]>;
   listPrompts(): Promise<PromptVersion[]>;
@@ -45,12 +47,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function uploadDocument(file: File): Promise<DocumentRecord> {
+async function uploadDocument(file: File): Promise<IngestJob> {
   const form = new FormData();
   form.append('file', file);
   const response = await fetch('/api/documents/upload', { method: 'POST', body: form });
   if (!response.ok) throw new ApiUnavailableError(`PDF upload failed (${response.status}).`);
-  return response.json() as Promise<DocumentRecord>;
+  return response.json() as Promise<IngestJob>;
 }
 
 async function* streamQuery(requestBody: QueryRequest): AsyncGenerator<QueryStreamEvent> {
@@ -89,6 +91,7 @@ export const api: RagApi = {
   listIndexedDocuments: () => request<DocumentRecord[]>('/documents/indexed'),
   ingestDocument: (data) => request<DocumentRecord>('/documents', { method: 'POST', body: JSON.stringify(data) }),
   uploadDocument,
+  ingestJob: (taskId) => request<IngestJob>(`/ingest-jobs/${encodeURIComponent(taskId)}`),
   documentHistory: (documentId) => request<DocumentHistoryEntry[]>(`/documents/history${documentId ? `?documentId=${encodeURIComponent(documentId)}` : ''}`),
   listExperiments: () => request<ExperimentRecord[]>('/experiments'),
   listPrompts: () => request<PromptVersion[]>('/prompts'),
