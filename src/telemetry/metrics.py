@@ -23,7 +23,10 @@ except ImportError:  # pragma: no cover - exercised only in minimal environments
 
 RAG_DURATION = Histogram(
     "rag_query_duration_seconds", "RAG latency by stage", ["stage", "retrieval_strategy"],
-    buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 40, float("inf")),
+    # histogram_quantile cannot extrapolate past the largest finite bucket, so a
+    # ceiling below real generation latency silently reports that ceiling as the
+    # quantile. Measured generation p95 under 20 concurrent users was 163s.
+    buckets=(0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 40, 60, 120, 240, 480, float("inf")),
 )
 RAG_TOP_SCORE = Histogram(
     "rag_retrieval_top_score", "Top retrieval score", ["retrieval_strategy"],

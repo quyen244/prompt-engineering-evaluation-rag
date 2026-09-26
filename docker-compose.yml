@@ -96,7 +96,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: rag-mlflow
-    command: mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow.db
+    command: mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow.db --workers 1
     ports:
       - "5000:5000"
     volumes:
@@ -126,6 +126,9 @@ services:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
       - OLLAMA_EMBED_MODEL=${OLLAMA_EMBED_MODEL:-qwen3-embedding:0.6b}
       - MLFLOW_TRACKING_URI=sqlite:///mlflow.db
+      # The server-side job subsystem spawns seven Huey workers that each load
+      # this image's full ML stack; tracking does not use them.
+      - MLFLOW_SERVER_ENABLE_JOB_EXECUTION=false
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/1
       - HF_HUB_OFFLINE=1

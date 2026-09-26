@@ -9,11 +9,13 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from typing import Any
 
 from gevent import spawn_later
 from gevent.event import Event
 from gevent.lock import Semaphore
 import mlflow
+from mlflow.tracking import MlflowClient
 from locust import HttpUser, between, events, task
 from locust.exception import StopUser
 
@@ -46,6 +48,11 @@ TECHQA_COLLECTION = ""
 STUDY_ID = uuid.uuid4().hex
 RUN_STARTED_AT = 0.0
 MLFLOW_RUN_STARTED = False
+# Locust monkey-patches with gevent, so MLflow's thread-local active-run stack is
+# not shared between the test_start and test_stop greenlets. Every write goes
+# through an explicit client and run id or it lands in a stray auto-created run.
+MLFLOW_RUN_ID = ""
+MLFLOW_CLIENT: "MlflowClient | None" = None
 TARGET_USERS = 0
 REQUESTS_STARTED = 0
 REQUESTS_COMPLETED = 0
@@ -70,6 +77,11 @@ def _get_json(path: str) -> object:
         raise RuntimeError(f"Load-test preflight failed for {path}: {type(exc).__name__}") from exc
 
 
+def _log_params(params: dict[str, Any]) -> None:
+    for key, value in params.items():
+        MLFLOW_CLIENT.log_param(MLFLOW_RUN_ID, key, value)
+
+
 def _stop_at_duration(runner) -> None:
     global STOP_REASON
     with REQUEST_LOCK:
@@ -81,11 +93,16 @@ def _stop_at_duration(runner) -> None:
 
 @events.test_start.add_listener
 def prepare_study(environment, **_kwargs) -> None:
+    global MLFLOW_RUN_STARTED
     try:
         _prepare_study(environment)
     except Exception as exc:
         environment.process_exit_code = 2
         print(f"error: load-test preflight failed: {exc}")
+        if MLFLOW_CLIENT is not None and MLFLOW_RUN_ID:
+            MLFLOW_CLIENT.set_tag(MLFLOW_RUN_ID, "preflight_error", type(exc).__name__)
+            MLFLOW_CLIENT.set_terminated(MLFLOW_RUN_ID, status="FAILED")
+            MLFLOW_RUN_STARTED = False
         spawn_later(0, environment.runner.quit)
 
 
@@ -93,6 +110,7 @@ def _prepare_study(environment) -> None:
     global BASE_URL, DOCUMENT_IDS, RUN_STARTED_AT, MLFLOW_RUN_STARTED, TARGET_USERS, STUDY_ID
     global REQUESTS_STARTED, REQUESTS_COMPLETED, STOP_REASON, RUN_TIMER, READY_USERS
     global TECHQA_QUESTIONS, TECHQA_CORPUS_SHA256, TECHQA_QUESTIONS_SHA256, TECHQA_COLLECTION
+    global MLFLOW_RUN_ID, MLFLOW_CLIENT
     if getattr(environment.runner, "worker", False):
         return
     if MLFLOW_RUN_STARTED:
@@ -156,25 +174,30 @@ def _prepare_study(environment) -> None:
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     experiment_name = os.getenv("RAG_LOAD_EXPERIMENT", "rag-query-concurrency")
     mlflow.set_tracking_uri(tracking_uri)
-    mlflow.set_experiment(experiment_name)
-    mlflow.start_run(run_name=os.getenv("RAG_LOAD_RUN_NAME", f"query-load-{STUDY_ID[:8]}"))
+    experiment = mlflow.set_experiment(experiment_name)
+    MLFLOW_CLIENT = MlflowClient(tracking_uri=tracking_uri)
+    run = MLFLOW_CLIENT.create_run(
+        experiment.experiment_id,
+        run_name=os.getenv("RAG_LOAD_RUN_NAME") or f"query-load-{STUDY_ID[:8]}",
+        tags={
+            "run_kind": "rag_load_test",
+            "study_id": STUDY_ID,
+            "request_scope": "full_rag_query_without_ingestion",
+            "retrieval_strategy": "dense",
+            "serving_configuration": "fastapi_qdrant_dense_ollama",
+        },
+    )
+    MLFLOW_RUN_ID = run.info.run_id
     MLFLOW_RUN_STARTED = True
-    mlflow.set_tags({
-        "run_kind": "rag_load_test",
-        "study_id": STUDY_ID,
-        "request_scope": "full_rag_query_without_ingestion",
-        "retrieval_strategy": "dense",
-        "serving_configuration": "fastapi_qdrant_dense_ollama",
-    })
     options = getattr(environment, "parsed_options", None)
     TARGET_USERS = int(getattr(options, "num_users", 0) or 0)
-    if TECHQA and TARGET_USERS not in (1, 100):
-        raise RuntimeError("TechQA load profile requires exactly 1 or 100 users")
-    if TECHQA and MAX_REQUESTS != (20 if TARGET_USERS == 1 else 100):
-        raise RuntimeError("TechQA load profile requires 20 requests for 1 user or 100 requests for 100 users")
+    if TECHQA and TARGET_USERS not in (1, 20, 100):
+        raise RuntimeError("TechQA load profile requires exactly 1, 20, or 100 users")
+    if TECHQA and MAX_REQUESTS != (100 if TARGET_USERS == 100 else 20):
+        raise RuntimeError("TechQA load profile requires 20 requests for 1 or 20 users, or 100 requests for 100 users")
     if TECHQA and os.getenv("QDRANT_COLLECTION") != TECHQA_COLLECTION:
         raise RuntimeError(f"Set QDRANT_COLLECTION={TECHQA_COLLECTION} for the TechQA load profile")
-    mlflow.log_params({
+    _log_params({
         "base_url": BASE_URL,
         "document_count": len(DOCUMENT_IDS),
         "document_ids_sha256": document_fingerprint(DOCUMENT_IDS),
@@ -204,14 +227,14 @@ def record_study(environment, **_kwargs) -> None:
     global MLFLOW_RUN_STARTED, RUN_TIMER
     if not MLFLOW_RUN_STARTED or getattr(environment.runner, "worker", False):
         return
-    elapsed = time.monotonic() - RUN_STARTED_AT
+    elapsed = time.monotonic() - RUN_STARTED_AT if RUN_STARTED_AT else 0.0
     stats = environment.runner.stats.total
     results = summarize_stats(
         stats,
         duration_seconds=elapsed,
         user_count=TARGET_USERS or environment.runner.user_count,
     )
-    mlflow.log_param("target_users", int(results["user_count"]))
+    _log_params({"target_users": int(results["user_count"])})
     results.update(summarize_stage_timings(STAGE_SAMPLES))
     results["requests_started"] = float(REQUESTS_STARTED)
     stop_reason = STOP_REASON or "manual"
@@ -219,10 +242,11 @@ def record_study(environment, **_kwargs) -> None:
     successful = complete and int(results["failure_count"]) == 0
     if not successful:
         environment.process_exit_code = 1
-    mlflow.set_tag("stop_reason", stop_reason)
-    mlflow.set_tag("complete", str(complete).lower())
-    mlflow.log_metrics(results)
-    mlflow.log_dict({
+    MLFLOW_CLIENT.set_tag(MLFLOW_RUN_ID, "stop_reason", stop_reason)
+    MLFLOW_CLIENT.set_tag(MLFLOW_RUN_ID, "complete", str(complete).lower())
+    for key, value in results.items():
+        MLFLOW_CLIENT.log_metric(MLFLOW_RUN_ID, key, float(value))
+    MLFLOW_CLIENT.log_dict(MLFLOW_RUN_ID, {
         "study_id": STUDY_ID,
         "request_scope": "POST /api/query: embedding + retrieval + Ollama generation; no uploads",
         "document_count": len(DOCUMENT_IDS),
@@ -238,7 +262,8 @@ def record_study(environment, **_kwargs) -> None:
     # PowerShell can expose a cp1252 stdout that raises after metrics upload.
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    mlflow.end_run(status="FINISHED" if successful else "FAILED")
+    MLFLOW_CLIENT.set_terminated(MLFLOW_RUN_ID, status="FINISHED" if successful else "FAILED")
+    print(f"mlflow_run_id: {MLFLOW_RUN_ID} status: {'FINISHED' if successful else 'FAILED'}")
     MLFLOW_RUN_STARTED = False
     if RUN_TIMER is not None and not RUN_TIMER.dead:
         RUN_TIMER.kill(block=False)
@@ -306,6 +331,11 @@ class RagQueryUser(HttpUser):
                 if should_stop and STOP_REASON is None:
                     STOP_REASON = "request_cap"
             if should_stop:
-                self.environment.runner.quit()
-        if TECHQA and TARGET_USERS == 100:
+                # quit() joins the greenlet pool, so calling it from this task's
+                # own greenlet deadlocks and test_stop never records the run.
+                spawn_later(0, self.environment.runner.quit)
+        # One request per user only when the user count already covers the cap
+        # (20 users x 1, 100 users x 1). A single user must keep looping to
+        # reach a 20-request cap on its own.
+        if TECHQA and TARGET_USERS >= MAX_REQUESTS:
             raise StopUser()
