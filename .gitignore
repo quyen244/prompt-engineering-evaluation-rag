@@ -2,8 +2,16 @@
 .venv/
 venv/
 venv_311/
+.venv-loadtest/
 __pycache__/
 *.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
 
 # Bí mật — KHÔNG BAO GIỜ commit
 .env
@@ -15,6 +23,7 @@ mlartifacts/
 
 # Cache của practice (judge responses, embedding)
 .cache/
+.lavish/
 
 # Model HuggingFace tải về
 .hf_cache/
@@ -35,9 +44,14 @@ data/
 
 # Frontend dependencies and build output
 frontend/node_modules/
+frontend/node_modules
 frontend/dist/
 
 # Output sinh ra
 artifacts/*.png
 artifacts/*.json
+artifacts/*.csv
+artifacts/*.jsonl
+artifacts/*.log
 eval_data/results/
+eval_data/experiment_history.jsonl

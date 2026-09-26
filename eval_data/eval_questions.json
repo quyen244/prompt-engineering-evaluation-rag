@@ -1,0 +1,122 @@
+[
+  {
+    "id": "TRAIN_Q144",
+    "question": "Help with Security Bulletin: The WebAdmin context for WMB V8 allows directory listings (CVE-2016-6080)\n\n\n\nI need to understand details regarding Security Bulletin: The WebAdmin context for WebSphere Message Broker Version 8 allows directory listings (CVE-2016-6080). Where can I find this information?\n  0",
+    "ground_truth": "CVEID: CVE-2016-6080 [http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-6080]\nDESCRIPTION: The WebAdmin context for WebSphere Message Broker allows directory listings, which could disclose sensitive information to the attacker.\nCVSS Base Score: 5.3\nCVSS Temporal Score: See https://exchange.xforce.ibmcloud.com/vulnerabilities/117560 [https://exchange.xforce.ibmcloud.com/vulnerabilities/117560] for the current score\nCVSS Environmental Score*: Undefined\nCVSS Vector: (CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N)",
+    "gold_doc_id": "swg21995004"
+  },
+  {
+    "id": "TRAIN_Q031",
+    "question": "Request fails with \"non idempotent request method - RFC 2616 sec 10.3. \"\n\nWhen a request is routed through DataPower and a redirect is done on a POST, the redirect will fail in DataPower and we can expect the following message to be logged in the error message: \"non idempotent request method - RFC 2616 sec 10.3.\"  How do I solve the problem?",
+    "ground_truth": "To resolve the issue, the IBM WebSphere DataPower SOA appliance web application firewall can be configured to handle these \"302 Redirects\".",
+    "gold_doc_id": "swg21318593"
+  },
+  {
+    "id": "TRAIN_Q378",
+    "question": "Help with Security Bulletin: A vulnerability in the GSKit component of IBM MQ Appliance (CVE-2016-0201)\n\nI need to understand details regarding Security Bulletin: A vulnerability in the GSKit component of IBM MQ Appliance (CVE-2016-0201). Where can I find this information?",
+    "ground_truth": "CVEID: CVE-2016-0201 [http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2016-0201]\nDESCRIPTION: IBM GSKit could allow a remote attacker to obtain sensitive information, caused by a MD5 collision. An attacker could exploit this vulnerability to obtain authentication credentials.\nCVSS Base Score: 5.9\nCVSS Temporal Score: See https://exchange.xforce.ibmcloud.com/vulnerabilities/109310 [https://exchange.xforce.ibmcloud.com/vulnerabilities/109310] for the current score\nCVSS Environmental Score*: Undefined\nCVSS Vector: (CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N)",
+    "gold_doc_id": "swg21974598"
+  },
+  {
+    "id": "TRAIN_Q340",
+    "question": "Why is an error seen while running run-svrssl-config?\n\n\n\nFollowing error is seen while running run-svrssl-config ConfigEngine task:\n\n     action-run-pdjrte-config-zos-wp.ac.impl: \n     [validateHost] Validating hostname(s) in the following argument: tam001:7136:1,tam002:7136:2\n          [echo] Command to run is: java com.tivoli.pd.jcfg.SvrSslCfg -action config -admin_id sec_master -admin_pwd ****** -appsvr_id myAppSvr -port 7223 -mode remote -policysvr\n     tam001:7135:1,tam002:7135:2 -authzsvr tam001:7136:1,tam002:7136:2 -cfg_file /opt/WebSphere/AppServer/tivoli/tam/PdPerm.properties -key_file /opt/WebSphere/AppServer/tivoli/tam/pdperm.ks\n          [java] Executing java with empty input string\n          [java] Exception in thread \"main\"\n          [java] [\n          [java] HPDMG0759W The user name already exists in the registry.\n          [java] ]\n          [java] at com.tivoli.pd.jutil.ob.a(ob.java:40)\n          [java] at com.tivoli.pd.jutil.ob.a(ob.java:66)",
+    "ground_truth": "To avoid the error, do one of the following steps before executing the run-svrssl-config task:\n\na) Use a unique value for wp.ac.impl.PDServerName\n\nor\n\nb) Run the following command manually from a command prompt on the portal server to remove the appsvr_id value from Tivoli Access Manager's repository: \n\njava com.tivoli.pd.jcfg.SvrSslCfg -action unconfig-admin_id sec_master -admin_pwd ****** -appsvr_id myserverid -port 7223 -mode remote -policysvr <hostname>:7135:1 -authzsvr <hostname>:7136:1 -cfg_file C:\\IBM\\WebSphere\\AppServer\\java\\jre/PdPerm.properties -key_file",
+    "gold_doc_id": "swg21319595"
+  },
+  {
+    "id": "TRAIN_Q306",
+    "question": "Hey, how can I transfer my spss 24 licence from my old macbook to the new one?\n\n\n\nI made the backup from my laptop to my new one, but SPSS doesnt allow me to start, because of the licence! Also I tried the SPSS Licence wizard on the new macbook, but it is not possible to fill in my licence\n\nI didn't find a option to deactivate the licence on the previous macbook.. how can I solve this problem?",
+    "ground_truth": "Type (copy/paste) the following command: \n    \n    sudo chown -R root:admin 20\n    \n 2. Press Enter/Return. \n 3. Close Terminal. \n 4. Launch the License Authorization Wizard.",
+    "gold_doc_id": "swg21966637"
+  },
+  {
+    "id": "TRAIN_Q190",
+    "question": "Does anyone know how to disable HTTPS to HTTP redirection for BPC Explorer?\n\n\n\nIt appears that by default, BPC comes configured with https instead of http.\n\nIs there a way to configure BPC to use http instead or are there steps for configuring BPC to use http? Need to avoid accessing BPC explorer via https.",
+    "ground_truth": "1. Download the unsecureExplorer.ant script file, which is attached near the bottom of this page.\n    \n    \n 2. If you previously switched Business Process Choreographer Explorer to use HTTP, but are performing this task again because you are installing an interim fix, fix pack, or refresh pack that updated Business Process Choreographer Explorer has reverted it back to the default HTTPS protocol, you must first delete the old (invalid) backup EAR file before running the script.\n    \n     * On Linux, UNIX-based and z/OS platforms, delete the install_root/ProcessChoreographer/internal/bpcexplorer_secure_backup.ear file. \n     * On Microsoft Windows platforms, delete the\n       install_root\\ProcessChoreographer\\internal\\bpcexplorer_secure_backup.ear file.\n       \n       \n    \n    \n 3. Run the script to patch the bpcexplorer.ear file. In a network deployment environment, you must run the script on the deployment manager.  * On Linux, UNIX-based and z/OS platforms, enter the following command:\n       install_root/ws_ant.sh -f unsecureExplorer.ant \n     * On Windows platforms, enter the following command:\n       install_root\\ws_ant.bat -f unsecureExplorer.ant\n       Note: A backup copy of the original EAR file is created named bpcexplorer_secure_backup.ear.\n       \n       \n    \n    \n 4. Deploy the patched bpcexplorer.ear file by updating the profile. For more information about updating profiles for an interim fix, see one of the following documents:  * For version 8.0.1.x: Profile update instructions for IBM Business Process Manager (BPM) interim fixes [http://www.ibm.com/support/docview.wss?uid=swg21608414]. \n     * For version 8.5 and later: Profile update instructions for IBM Business Process Manager (BPM) interim fixes [http://www.ibm.com/support/docview.wss?uid=swg21637449].",
+    "gold_doc_id": "swg24034421"
+  },
+  {
+    "id": "TRAIN_Q130",
+    "question": "Upgrading to 7.7.x while using APIC v5 with DataPower?\n\nWe currently have API Connect v5 with DataPower 7.2.x. Considering 7.2 is going out of support, we would like to upgrade to the most recent version(7.7) to stay up-to-date. Are there any known issues or conflicts with this setup?",
+    "ground_truth": "Effective with DataPower Gateway firmware V7.6 [https://www.ibm.com/common/ssi/cgi-bin/ssialias?infotype=AN&subtype=CA&htmlfid=897/ENUS217-265&appname=USN], DataPower introduces a Continuous Delivery (CD) model to accelerate delivery of new capabilities and meet market needs. DataPower CD will consist of two releases:\n\n 1. CD release approximately once per quarter  * Only the most recent CD release is supported at a given time.\n    \n    \n 2. Long Term Support (LTS) release every 12 months.",
+    "gold_doc_id": "swg21246298"
+  },
+  {
+    "id": "DEV_Q213",
+    "question": "Can I migrate or convert Workplace XT created Search Templates to Content Navigator?\n\nWhen migrating from Workplace XT to Content Navigator, can I covert or migrate XT created search templates to the ICN version of managed search templates?",
+    "ground_truth": "Workplace XT created search templates are also supported in ICN with the restriction that the search template cannot be edited in ICN.",
+    "gold_doc_id": "swg21648471"
+  },
+  {
+    "id": "TRAIN_Q113",
+    "question": "How do I configure logging for Atlas Extensions in Atlas 6.0.3.3?\n\nHow do I configure logging for Atlas Extensions in Atlas 6.0.3.3?",
+    "ground_truth": "In Atlas 6.0.3.3, the Atlas Extensions logging configuration has moved to log4j.properties file. \n\n 1. Navigate to <Atlas_Install_folder>/Atlas/Properties folder \n 2. Edit log4.properties file \n 3. Update the path Information for the following three properties  1. log4j.appender.MATTER_APPENDER.File=matter_adapter.log \n     2. log4j.appender.PERSON_APPENDER.File=person_adapter.log \n     3. log4j.appender.ORG_UNIT_APPENDER.File=org_unit_adapter.log\n    \n    \n 4. Save the file \n 5. Restart Atlas application server",
+    "gold_doc_id": "swg21981881"
+  },
+  {
+    "id": "DEV_Q302",
+    "question": "How can I export a private key from DataPower Gateway Appliance?\n\n\n\nIs it possible to export a private key from DataPower Gateway Appliance?",
+    "ground_truth": "HSM-enabled DataPower appliances support the export of private keys using the crypto-export command. For key export to work, various conditions must be met: \n\n * HSMs must be initialized and in the same key sharing domain on exporting and importing machines \n * The private key in question must be marked exportable at keygen time (see keygen's exportable option) \n * HSMs on exporting and importing machines must share internal key-wrapping keys (see hsm-clone-kwk command). A key-wrapping key is a key that encrypts another key.",
+    "gold_doc_id": "swg21412061"
+  },
+  {
+    "id": "TRAIN_Q580",
+    "question": "WebSphere MQ Hypervisor Edition requires customer action for the GNU C library (glibc) vulnerabilities (CVE-2015-1472 & CVE-2013-7423)\n\nWebSphere MQ Hypervisor Edition requires customer action for the GNU C library (glibc) vulnerabilities (CVE-2015-1472 & CVE-2013-7423)\nWhere can I find additional information on what action is required?",
+    "ground_truth": "IBM strongly recommends that you should contact Red Hat to obtain fixes and install fixes for Red Hat Enterprise Linux (RHEL).",
+    "gold_doc_id": "swg21902248"
+  },
+  {
+    "id": "TRAIN_Q041",
+    "question": "Security Bulletin: IBM MQ Appliance is affected by a Network Security Services (NSS) vulnerability (CVE-2017-5461)\n\nI need to understand details regarding Security Bulletin: IBM MQ Appliance is affected by a Network Security Services (NSS) vulnerability (CVE-2017-5461). Where can I find this information?",
+    "ground_truth": "CVEID:CVE-2017-5461 [http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-5461]\nDESCRIPTION:Mozilla Firefox could allow a remote attacker to execute arbitrary code on the system, caused by an out-of-bounds write during Base64 decoding operation in the Network Security Services (NSS) library. By persuading a user to visit a specially-crafted website, a remote attacker could exploit this vulnerability using unknown attack vectors to execute arbitrary code on the vulnerable system or cause a denial of service.\nCVSS Base Score: 8.8\nCVSS Temporal Score: Seehttps://exchange.xforce.ibmcloud.com/vulnerabilities/125002 [https://exchange.xforce.ibmcloud.com/vulnerabilities/125002]for the current score\nCVSS Environmental Score*: Undefined\nCVSS Vector: (CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H)",
+    "gold_doc_id": "swg22005055"
+  },
+  {
+    "id": "TRAIN_Q039",
+    "question": "How to remove the default -Xcompressedrefs from my WebSphere Application Server\n\nMy understanding is that for performance reasons, the WebSphere Application server on 64bit JVMs is, by default, using compressed references (-Xcompressedrefs). Due to native OutOfMemory error, I would like to remove that default, so there is no such limitation imposed on my native memory size.",
+    "ground_truth": "To avoid this problem, the generic JVM argument [http://www-01.ibm.com/support/docview.wss?uid=swg21417365] -Xgc:preferredHeapBase=<address> [http://publib.boulder.ibm.com/infocenter/javasdk/v6r0/topic/com.ibm.java.doc.diagnostics.60/diag/understanding/mm_compressed_references.html] can be used to ensure the Java heap is allocated above the 4GB address space. This will leave more room for the Class Pointer and Monitor/Lock memory.",
+    "gold_doc_id": "swg21660890"
+  },
+  {
+    "id": "TRAIN_Q121",
+    "question": "ncp_poller failed with Out-of-memory in ITNM 3.9 FP4+IF1. What went wrong?.\n\n\n\nncp_poller is failed with out-fo-memory even if we have ITNM 3.9 FP4+IF1 latest FP\n\n2016-04-11T03:02:09: Fatal: F-RIV-002-014: [31869t] CRivError.cc(386) Out-of-memory - This process has run out of memory or exceeded the operating system memory limit for a 32 bit application - You must take action to reduce the amount of data this application is having to process new handler called\n\nHow to resolve this issue?.",
+    "ground_truth": "There are 100 threads assigned for default Pollers in all three releases (v3.7, v3.8 & v3.9). \nThe additional poller is a new feature in v3.8 and higher versions, so additional Poller threads is not applicable for v3.7. But when you create additional pollers in v3.8/v3.9 same # of thread (i.e. 100) pool is assigned.\n\nIn v3.8, v3.9 - you can also increase the default 100 to a higher value by modifying and uncommenting the following line in $NCHOME/etc/precision/NcPollerSchema.cfg\n//update config.properties set BatchExtraThreads = 150;",
+    "gold_doc_id": "swg21514810"
+  },
+  {
+    "id": "TRAIN_Q301",
+    "question": "How do you switch on the indexing of sparse file in StoredIQ?\n\nBy default these are skipped - does anyone know where to switch them on on the dataserver?",
+    "ground_truth": "SSH into the Data Server(s) and enter the following command at the prompt; \n\n\npsql -U dfuser dfdata -c \"insert into adminknobs (name,value,description,valuetype,use) VALUES ('read_sparse_files','1','Read sprase data objects','int','1')\"\n\nIt should return the following;\n\nINSERT 0 1\n\nif so, enter the following command and wait for the UI to come back up;\n\nservice siqinit restart",
+    "gold_doc_id": "swg21692240"
+  },
+  {
+    "id": "TRAIN_Q322",
+    "question": "EIF probe not receiving itm events\n\nEIF probe not receiving itm events\nWhy is the event in the netcool isn't cleaned ?",
+    "ground_truth": "ITM is sending events to EIF probe which is then forwarded to the OMNIbus Server. Client is observing that the clearing event is sent per the ITM trace/log but the event does not seem to be received into EIF or OMNIbus as the triggered event is still seen in OMNIbus.\n\n\n\nSYMPTOM\nSituation in ITM is no longer true but event is not cleared in OMNIbus.\n\n\nDIAGNOSING THE PROBLEM\nThe iptrace shows that the EIF probe on the OMNIbus side is resetting/closing(<RST>) the TCP/IP connection after it receives the event and it never shows up in the EIF logs, so the event is just dropped.",
+    "gold_doc_id": "swg21978641"
+  },
+  {
+    "id": "DEV_Q132",
+    "question": "What is the meaning of value \"unknown\" for ITCAM WAS Application Status attribute?\n\nWhat is the meaning of value \"unknown\" for ITCAM WAS Application Status attribute?",
+    "ground_truth": "By default baselining gets enabled with a situation WasAppDiscoverd. This situation is enabled by default and will discover new applications then run a take action to start the baselining. So if this situation is not enabled then you should enable it and assign to the ITCAM App Server managing system list.",
+    "gold_doc_id": "swg21653905"
+  },
+  {
+    "id": "TRAIN_Q034",
+    "question": "ITNM 4.2 Fix Pack 3 link and build number?.\n\nITNM 4.2 FP3 is available, if yes then where we can download?.",
+    "ground_truth": "http://www.ibm.com/support/knowledgecenter/en/SSSHRK_4.2.0/itnm/ip/wip/relnotes/reference/nmip_rn.html?view=kc#relnotes__description",
+    "gold_doc_id": "swg24043575"
+  },
+  {
+    "id": "DEV_Q244",
+    "question": "How to clear Errors Found in crm_mon\n\nHow to clear Errors Found in crm_mon",
+    "ground_truth": "The following steps can be used to clear each failed resource using cib_tool.pl. \n\n[root@system pts]# /opt/nz-hwsupport/pts/cib_tools.pl\nheartbeat is running on ha1\nheartbeat is running on ha2\nNo split brain detected on ha1\nNo split brain detected on ha2\nCRM running on ha1\nCRM running on ha2",
+    "gold_doc_id": "swg21694876"
+  },
+  {
+    "id": "TRAIN_Q272",
+    "question": "Why are we seeing MQRC_NOT_AUTHORIZED errors after upgrading Websphere from V7.0 to V8.5.5?\n\nhttps://www-01.ibm.com/support/docview.wss?uid=swg21662193",
+    "ground_truth": "WebSphere MQ access control is based on user identifiers. There is a deliberate change in the default behaviour between the WebSphere MQ V7.0.1 classes for JMS and the WebSphere MQ V7.1 (and later) classes for JMS regarding the default user identifier flowed to the queue manager.\nFrom the WebSphere MQ V7.1 classes for JMS onwards, a non-blank user identifier is always flowed to the queue manager when creating a connection to WebSphere MQ.",
+    "gold_doc_id": "swg21662193"
+  }
+]

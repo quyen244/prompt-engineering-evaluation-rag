@@ -4,12 +4,10 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from src.eval.dataset import load_cases, load_manifest, validate_project_cases, validate_split_disjointness
+from src.eval.dataset import load_cases
 from src.eval.metrics.retrieval import hit_rate_at_k, mrr_at_k, ndcg_at_k, precision_at_k, recall_at_k
-from src.eval.runner import EvalConfig, mode_cases, paired_compare, run_eval
-
-
-ROOT = Path(__file__).resolve().parents[1]
+from src.eval.runner import EvalConfig, paired_compare, run_eval
+from src.eval.schema import EvalCase
 
 
 class FakeRetriever:
@@ -17,45 +15,27 @@ class FakeRetriever:
         return [SimpleNamespace(page_content="context", metadata={"document_id": "not-relevant"})]
 
 
+def cases() -> list[EvalCase]:
+    return [EvalCase(
+        case_id=f"case-{index}", question=f"Question {index}?",
+        expected_answer="Reference answer", relevant_document_ids=(f"gold-{index}",),
+        source="test_fixture",
+    ) for index in range(20)]
+
+
 class EvaluationHarnessTests(unittest.TestCase):
-    def test_manifest_counts_and_disjoint_splits(self):
-        manifest = load_manifest(ROOT / "eval_data/manifests/evaluation_manifest.json")
-        validate_split_disjointness(manifest)
-        self.assertEqual(manifest["project_source"]["count"], 20)
-        self.assertEqual(manifest["huggingface"]["splits"]["improvement"]["count"], 30)
-        self.assertEqual(manifest["huggingface"]["splits"]["validation"]["count"], 30)
-        self.assertEqual(manifest["huggingface"]["license"], "cc-by-sa-4.0")
-        for split in ("improvement", "validation"):
-            selection = manifest["huggingface"]["splits"][split]["selection"]
-            self.assertEqual(len({item["row_id"] for item in selection}), 30)
-            self.assertEqual(len({item["row_idx"] for item in selection}), 30)
-            self.assertTrue(all(len(item["row_hash"]) == 64 for item in selection))
+    def test_cases_load_from_an_explicit_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "cases.jsonl"
+            path.write_text("\n".join(json.dumps(case.to_dict()) for case in cases()), encoding="utf-8")
+            loaded = load_cases(path)
+            self.assertEqual(len(loaded), 20)
+            self.assertEqual([case.case_id for case in loaded], [case.case_id for case in cases()])
 
-    def test_project_cases_are_real_and_source_spans_match(self):
-        cases = load_cases(ROOT / "eval_data/project_source_cases.jsonl")
-        self.assertEqual(len(cases), 20)
-        self.assertTrue(validate_project_cases(cases, ROOT).valid)
-        self.assertTrue(all(case.source == "project" for case in cases))
-
-    def test_smoke_selection_is_repeatable(self):
-        first = mode_cases("smoke", root=ROOT)
-        second = mode_cases("smoke", root=ROOT)
-        self.assertEqual([case.case_id for case in first], [case.case_id for case in second])
-        self.assertEqual([case.to_dict() for case in first], [case.to_dict() for case in second])
-
-    def test_missing_sources_fail_without_fallback_cases(self):
-        missing = ROOT / "eval_data" / "does-not-exist.jsonl"
-        with self.assertRaisesRegex(FileNotFoundError, "evaluation data is missing"):
-            load_cases(missing)
-        with self.assertRaisesRegex(FileNotFoundError, "evaluation manifest is missing"):
-            load_manifest(ROOT / "eval_data" / "manifests" / "does-not-exist.json")
-
-        real_cases = load_cases(ROOT / "eval_data/project_source_cases.jsonl")
-        with tempfile.TemporaryDirectory() as empty_root:
-            report = validate_project_cases(real_cases, empty_root)
-        self.assertFalse(report.valid)
-        self.assertEqual(report.checked, 20)
-        self.assertTrue(any("source file does not exist" in error for error in report.errors))
+    def test_missing_source_fails_without_fallback_cases(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaisesRegex(FileNotFoundError, "evaluation data is missing"):
+                load_cases(Path(directory) / "missing.jsonl")
 
     def test_retrieval_metrics(self):
         ranked = ["wrong", "gold", "other"]
@@ -67,13 +47,12 @@ class EvaluationHarnessTests(unittest.TestCase):
         self.assertAlmostEqual(ndcg_at_k(ranked, relevant, 2), 1 / 1.584962500721156)
 
     def test_run_writes_per_query_and_append_only_history(self):
-        cases = mode_cases("smoke", root=ROOT)
         with tempfile.TemporaryDirectory() as directory:
             history = Path(directory) / "history.jsonl"
             output = Path(directory) / "results"
-            first = run_eval(EvalConfig(name="a"), cases, FakeRetriever(), output_dir=output, history_path=history)
+            first = run_eval(EvalConfig(name="a"), cases(), FakeRetriever(), output_dir=output, history_path=history)
             size = history.stat().st_size
-            second = run_eval(EvalConfig(name="b"), cases, FakeRetriever(), output_dir=output, history_path=history)
+            second = run_eval(EvalConfig(name="b"), cases(), FakeRetriever(), output_dir=output, history_path=history)
             self.assertGreater(history.stat().st_size, size)
             self.assertEqual(len(first.query_results), 20)
             self.assertEqual(len(list(output.glob("*.jsonl"))), 2)

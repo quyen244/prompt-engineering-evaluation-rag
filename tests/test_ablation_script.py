@@ -2,10 +2,12 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from scripts.run_retrieval_ablation import build_configs, run_ablation
 from scripts.project_embedding_factory import DenseProjectRetriever
-from src.eval.runner import EvalConfig, mode_cases
+from src.eval.runner import EvalConfig
+from src.eval.schema import EvalCase
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -89,9 +91,16 @@ class AblationScriptTests(unittest.TestCase):
         self.assertEqual(documents[0].page_content, "a better chunk")
 
     def test_paired_runs_are_logged_to_injected_mlflow(self):
-        cases = mode_cases("smoke", root=ROOT)
+        cases = [EvalCase(
+            case_id=f"case-{index}", question=f"Question {index}?",
+            expected_answer="Reference answer", relevant_document_ids=(f"gold-{index}",),
+            source="test_fixture",
+        ) for index in range(20)]
         mlflow = FakeMlflow()
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory() as directory, patch(
+            "scripts.run_retrieval_ablation.load_manifest",
+            return_value={"schema_version": 1, "fixture": "unit-test"},
+        ):
             study_id, reports, comparison = run_ablation(
                 cases=cases,
                 configs=[EvalConfig(name="top-3", top_k=3), EvalConfig(name="top-5", top_k=5)],
@@ -102,7 +111,7 @@ class AblationScriptTests(unittest.TestCase):
                 tracking_uri="sqlite:///test.db",
                 output_dir=Path(directory) / "results",
                 history_path=Path(directory) / "history.jsonl",
-                manifest_path=ROOT / "eval_data/manifests/evaluation_manifest.json",
+                manifest_path=Path(directory) / "unused-manifest.json",
             )
 
         self.assertEqual(len(reports), 2)

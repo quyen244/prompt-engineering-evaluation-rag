@@ -82,18 +82,11 @@ The frontend reads its backend base URL from `VITE_BACKEND_URL` (see
 
 ## Evaluation
 
-The evaluation harness has three source-defined modes: a 20-case checked-in smoke
-set, 30 SQuAD improvement cases, and a disjoint 30-case SQuAD validation set. The
-Hugging Face rows are fetched at runtime and checked against the pinned manifest;
-they are not silently replaced with generated examples. See
-[`docs/evaluation_harness.md`](docs/evaluation_harness.md) for provenance and API
-usage, and [`eval_data/manifests/evaluation_manifest.json`](eval_data/manifests/evaluation_manifest.json)
-for the selected data.
-
-Retrieval evaluation provides deterministic Hit Rate, Precision, Recall, MRR, and
-nDCG metrics. The harness does not by itself establish generation quality or a
-winning production configuration. Keep measured results tied to saved run artifacts
-and held-out validation.
+The current evaluation input is the lightweight TechQA set in [`eval_data/`](eval_data/): 20 questions with reference answers and gold document IDs, plus 100 real documents including 80 distractors.
+The retrieval ablation compares BM25, dense, and hybrid retrieval with local Qwen3 and cached multilingual E5 embeddings at several Top-K values.
+It records Hit Rate, Precision, Recall, MRR, and nDCG in MLflow, then writes a fingerprinted champion configuration for the generation evaluator.
+Generation uses local `qwen3.5:4b` and a separate OpenRouter judge for faithfulness, answer correctness, answer relevancy, and citation precision.
+See [`features/techqa-evaluation/spec.md`](features/techqa-evaluation/spec.md) for the study contract and [`docs/evaluation_harness.md`](docs/evaluation_harness.md) for the historical harness whose input files have been retired.
 
 ## RAG architecture
 
@@ -125,6 +118,7 @@ service URLs and launcher notes are in `start_docker.sh` and `start_docker.bat`.
 
 - [Setup](docs/00_setup.md)
 - [Evaluation](docs/01_evaluation.md)
+- [TechQA evaluation commands](docs/techqa_evaluation.md)
 - [Prompt optimization](docs/02_prompt_optimization.md)
 - [A/B testing](docs/03_ab_testing.md)
 - [Serving](docs/04_serving.md)
@@ -147,9 +141,29 @@ tracks current implementation status.
 
 ## Measured Experiments
 
-### Local Embedding A/B Study
+### TechQA Retrieval Ablation
 
-On September 25, 2026, a paired six-run study compared the pinned local Hugging Face
+On September 26, 2026, 15 configurations were evaluated on the lightweight TechQA corpus of 100 documents and 20 labeled questions.
+The shared dataset fingerprint is `458ab06a6266426d1fdc0eb6da50984b694a30bce9000835a695a71d844437ca`.
+MLflow experiment `techqa-retrieval`, study ID `4eff253f672d49c98ef4c1328836d94d` contains all five retrieval metrics and per-question document and passage IDs.
+
+| Method | Embedding | Top-K | Hit Rate | MRR | nDCG |
+|---|---|---:|---:|---:|---:|
+| BM25 | None | 5 | 1.000 | 0.898 | 0.922 |
+| Dense | Qwen3 0.6B | 3 | 1.000 | 1.000 | 1.000 |
+| Dense | multilingual E5 base | 3 | 0.950 | 0.950 | 0.950 |
+| Hybrid | Qwen3 0.6B | 3 | 1.000 | 0.975 | 0.981 |
+
+Dense Qwen ranked the gold document first for all 20 supplied questions at Top-K 3, 5, and 10.
+An MLflow tracked K1 confirmation run (`04daa09fe1644e469a98c56e246261ec`) also scored 1.000 on all five retrieval metrics.
+The current generation champion is therefore dense Qwen at Top-K 1, recorded in `eval_data/results/techqa_retrieval_champion.json`.
+These questions were also used to choose the configuration, and some contain document titles or exact identifiers, so this result does not establish performance on unseen questions.
+The full matrix and command are described in [`docs/techqa_evaluation.md`](docs/techqa_evaluation.md).
+
+### Historical Local Embedding A/B Study
+
+On September 25, 2026, a paired six-run study on the former project-source dataset
+compared the pinned local Hugging Face
 `intfloat/multilingual-e5-base` checkpoint with Ollama `qwen3-embedding:0.6b` at
 Top-K 5, 10, and 20.
 All variants used the same 20 source-backed project cases and the same fingerprinted
@@ -177,8 +191,8 @@ retrieval candidate, while Top-K 10 is a reasonable recall/precision compromise 
 validate against the untouched holdout before changing the serving default.
 These are retrieval-only measurements; generation quality and latency were not
 measured in this study.
-See [`docs/evaluation_harness.md`](docs/evaluation_harness.md) for the runnable,
-MLflow-tracked command.
+The former input files were removed when TechQA became the current evaluation set.
+The saved MLflow runs remain historical evidence for that study.
 
 ### PDF Ingestion with Celery
 
@@ -205,3 +219,11 @@ The 1.6% lower Celery mean is sensitive to the first synchronous trial and is no
 claimed as a robust latency reduction.
 See [`docs/evaluation_harness.md`](docs/evaluation_harness.md) for the runnable
 benchmark and job-status API.
+
+### Concurrent Query Load Test
+
+[`scripts/locust_rag.py`](scripts/locust_rag.py) models concurrent Ask requests against already-indexed documents.
+Each request measures question embedding, Qdrant retrieval, and local Ollama answer generation separately; uploads are not part of this load profile.
+Runs record throughput, failures, overall latency, and per-stage latency in MLflow experiment `rag-query-concurrency`.
+The profile stops after 120 seconds or 20 requests by default.
+Start with the Locust UI as described in [`docs/load_testing.md`](docs/load_testing.md).

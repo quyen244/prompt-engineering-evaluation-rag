@@ -1,5 +1,10 @@
 # Source-backed evaluation harness
 
+This page describes the former project-source and SQuAD study.
+Its input manifest and cases were removed when the lightweight TechQA set became the active evaluation input.
+The commands below are historical and will not run against the current `eval_data/` directory.
+For the current study, use `scripts/techqa_retrieval.py`, `scripts/techqa_generation.py`, and `scripts/run_techqa_load.ps1`.
+
 This harness has three explicit modes and never creates fallback questions, answers,
 or metrics:
 

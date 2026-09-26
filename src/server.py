@@ -13,7 +13,7 @@ import uuid
 from typing import Any, AsyncGenerator
 
 import httpx
-from fastapi import FastAPI, Request, UploadFile, File, HTTPException
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -69,7 +69,6 @@ app.add_middleware(RequestIdMiddleware)
 
 # Mount Prometheus Scrape Endpoint
 if _PROMETHEUS_AVAILABLE:
-    from fastapi.responses import Response
     from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
     @app.get("/metrics")
@@ -676,21 +675,28 @@ async def list_runs() -> list[dict[str, Any]]:
 
 
 @app.post("/api/query", response_model=QueryResponse)
-def query_pipeline(req: QueryRequest) -> QueryResponse:
+def query_pipeline(req: QueryRequest, response: Response) -> QueryResponse:
     req_id = get_request_id() or f"req-{uuid.uuid4().hex[:8]}"
     with span("rag.query", {"rag.request.id": req_id, "rag.retrieval.strategy": "dense"}):
-        return _run_query_pipeline(req, req_id)
+        return _run_query_pipeline(req, req_id, response)
 
 
-def _run_query_pipeline(req: QueryRequest, req_id: str) -> QueryResponse:
+def _run_query_pipeline(req: QueryRequest, req_id: str, response: Response) -> QueryResponse:
     trace_id = current_trace_id() or uuid.uuid4().hex
     now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    stage_durations_ms: dict[str, float] = {}
 
     try:
         from qdrant_client.models import Filter, FieldCondition, MatchAny, MatchValue
+        embedding_started = time.perf_counter()
+        with span("rag.embed", {"rag.retrieval.strategy": "dense"}):
+            vector = _embed([req.question])[0]
+        embedding_seconds = time.perf_counter() - embedding_started
+        stage_durations_ms["embedding"] = embedding_seconds * 1000
+        record_stage_duration("embed", embedding_seconds, "dense")
+
         retrieval_started = time.perf_counter()
         with span("rag.retrieve", {"rag.retrieval.strategy": "dense"}):
-            vector = _embed([req.question])[0]
             if not _qdrant().collection_exists(QDRANT_COLLECTION):
                 raise HTTPException(status_code=404, detail="No documents have been indexed yet")
             conditions = []
@@ -706,7 +712,9 @@ def _run_query_pipeline(req: QueryRequest, req_id: str) -> QueryResponse:
                 limit=req.topK or RETRIEVAL_K,
                 with_payload=True,
             ).points
-        record_stage_duration("retrieve", time.perf_counter() - retrieval_started, "dense")
+        retrieval_seconds = time.perf_counter() - retrieval_started
+        stage_durations_ms["retrieval"] = retrieval_seconds * 1000
+        record_stage_duration("retrieve", retrieval_seconds, "dense")
         sources = [point for point in results if point.payload and point.payload.get("text")]
         if not sources:
             raise HTTPException(status_code=404, detail="No matching indexed source content was found")
@@ -726,7 +734,7 @@ def _run_query_pipeline(req: QueryRequest, req_id: str) -> QueryResponse:
         )
         generation_started = time.perf_counter()
         with span("rag.generate", {"gen_ai.request.model": OLLAMA_CHAT_MODEL}):
-            response = httpx.post(
+            ollama_response = httpx.post(
                 f"{OLLAMA_BASE_URL}/api/chat",
                 json={
                     "model": OLLAMA_CHAT_MODEL,
@@ -740,10 +748,12 @@ def _run_query_pipeline(req: QueryRequest, req_id: str) -> QueryResponse:
                 },
                 timeout=300,
             )
-            response.raise_for_status()
-            generation = response.json()
+            ollama_response.raise_for_status()
+            generation = ollama_response.json()
             answer = generation.get("message", {}).get("content", "").strip()
-        record_stage_duration("generate", time.perf_counter() - generation_started, "dense")
+        generation_seconds = time.perf_counter() - generation_started
+        stage_durations_ms["generation"] = generation_seconds * 1000
+        record_stage_duration("generate", generation_seconds, "dense")
         if not answer:
             raise RuntimeError("Ollama returned an empty answer")
         CONTEXT_TOKENS.observe(int(generation.get("prompt_eval_count", 0)))
@@ -768,6 +778,10 @@ def _run_query_pipeline(req: QueryRequest, req_id: str) -> QueryResponse:
         record_error("query", "upstream")
         raise HTTPException(status_code=503, detail=f"RAG query failed: {type(exc).__name__}") from exc
 
+    response.headers["Server-Timing"] = ", ".join(
+        f"{stage};dur={duration_ms:.3f}"
+        for stage, duration_ms in stage_durations_ms.items()
+    )
     return QueryResponse(
         queryId=f"query-{uuid.uuid4().hex[:8]}",
         answer=answer,
