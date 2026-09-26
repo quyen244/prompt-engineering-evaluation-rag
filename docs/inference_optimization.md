@@ -98,15 +98,39 @@ Model weights dominate at 2513 MiB.
 Context, which includes the KV cache, is 178 MiB.
 This is the accounting that rejects the KV cache hypothesis and that makes the parallel-slot option below affordable.
 
+### `OLLAMA_NUM_PARALLEL` - blocked by model architecture, not by memory
+
+Setting `OLLAMA_NUM_PARALLEL=4` and restarting Ollama does reach the server config, but the models still load with a single slot:
+
+```
+WARN msg="model architecture does not currently support parallel requests" architecture=qwen35
+llama_context: n_seq_max = 1
+srv load_model: initializing, n_slots = 1, n_ctx_slot = 4096
+```
+
+Memory is explicitly not the constraint - the same load reports `will leave 2316 >= 1685 MiB of free device memory, no changes needed`.
+
+`qwen3.5:4b` is a hybrid architecture: the log shows 8 attention layers alongside 32 `llama_memory_recurrent` layers.
+Recurrent layers carry per-sequence state that llama.cpp cannot yet share across parallel slots, so Ollama refuses parallel requests for this architecture and silently clamps the setting to 1.
+
+This means the serving stack processes exactly one generation at a time regardless of configuration, which fully explains the 20-user latencies without needing any KV-cache or thrashing hypothesis.
+
+The run was executed anyway to confirm the log with measurement (`techqa-20-users-parallel4`, 20/20 requests, zero failures, `complete=true`):
+
+| Metric | parallel=1 | parallel=4 |
+|---|---|---|
+| Response mean | 88 568 ms | 105 619 ms |
+| Response p50 | 94 000 ms | 108 000 ms |
+| Throughput | 0.2 req/s | 0.1 req/s |
+| Slots allocated | 1 | 1 |
+
+No improvement was measured.
+The differences sit inside the ±20% run-to-run noise band, so the honest reading is "no measurable effect", not "made it worse".
+
+**Consequence for concurrency.** Real parallelism on this stack requires switching to a conventional transformer architecture that llama.cpp can batch - for example a Qwen2.5 or Llama-family model small enough for 6 GB.
+That is a model change with answer-quality implications, so it must be re-scored with the judge against the same 20 questions, not swapped in on performance grounds alone.
+
 ## Open candidates, not yet measured
-
-### Raise `OLLAMA_NUM_PARALLEL` from 1 to 2-4
-
-Each parallel slot costs roughly 128 MiB of KV cache, so four slots add about 384 MiB against roughly 2.3 GB of headroom.
-Batched decoding across sequences is how llama.cpp raises GPU throughput, so this is the most promising untested lever for the 20-user case specifically.
-
-An earlier note in this project warned against raising this value on the grounds that VRAM sat at 94% during a load run.
-That reasoning was wrong: total VRAM during a run is not the marginal cost of an additional slot, and the marginal cost is small.
 
 ### Move query embedding off the GPU
 
