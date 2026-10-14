@@ -53,5 +53,6 @@ artifacts/*.json
 artifacts/*.csv
 artifacts/*.jsonl
 artifacts/*.log
+/artifacts/vllm_benchmark*/
 eval_data/results/
 eval_data/experiment_history.jsonl

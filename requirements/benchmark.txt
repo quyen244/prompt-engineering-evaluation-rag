@@ -1,0 +1,7 @@
+# Python 3.11, inside the project virtual environment.
+httpx==0.28.1
+mlflow==3.16.1
+python-dotenv>=1.0,<2
+ragas==0.4.3
+langchain-community==0.3.31
+openai==3.3.0

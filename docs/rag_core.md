@@ -1,5 +1,8 @@
 # LangChain RAG core
 
+For the PDF API and TechQA chunking paths, see [Chunking E2E](chunking_e2e.md).
+The API does not call the splitter described in this document.
+
 `src/rag/pipeline.py` is the framework boundary for the real-source RAG path:
 
 1. `IngestionPipeline` loads text/Markdown/CSV/HTML or PDF pages and preserves the

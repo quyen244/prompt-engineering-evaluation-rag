@@ -119,6 +119,8 @@ service URLs and launcher notes are in `start_docker.sh` and `start_docker.bat`.
 - [Setup](docs/00_setup.md)
 - [Evaluation](docs/01_evaluation.md)
 - [TechQA evaluation commands](docs/techqa_evaluation.md)
+- [TechQA vLLM inference benchmark](docs/vllm_techqa_benchmark.md)
+- [Chunking E2E and differences between serving and evaluation](docs/chunking_e2e.md)
 - [Prompt optimization](docs/02_prompt_optimization.md)
 - [A/B testing](docs/03_ab_testing.md)
 - [Serving](docs/04_serving.md)
@@ -143,6 +145,8 @@ tracks current implementation status.
 
 ### TechQA Retrieval Ablation
 
+The [50-question RRF tuning and shared 20-question test](docs/techqa_rrf_tuning.md) found that dense Qwen still ranked all 20 gold documents first; tuned RRF ranked 16 first and all 20 within Top-K 3.
+
 On September 26, 2026, 15 configurations were evaluated on the lightweight TechQA corpus of 100 documents and 20 labeled questions.
 The shared dataset fingerprint is `458ab06a6266426d1fdc0eb6da50984b694a30bce9000835a695a71d844437ca`.
 MLflow experiment `techqa-retrieval`, study ID `4eff253f672d49c98ef4c1328836d94d` contains all five retrieval metrics and per-question document and passage IDs.
@@ -159,6 +163,36 @@ An MLflow tracked K1 confirmation run (`04daa09fe1644e469a98c56e246261ec`) also 
 The current generation champion is therefore dense Qwen at Top-K 1, recorded in `eval_data/results/techqa_retrieval_champion.json`.
 These questions were also used to choose the configuration, and some contain document titles or exact identifiers, so this result does not establish performance on unseen questions.
 The full matrix and command are described in [`docs/techqa_evaluation.md`](docs/techqa_evaluation.md).
+
+### TechQA vLLM Inference Benchmark
+
+On October 15, 2026, the running vLLM server (`Qwen/Qwen2.5-1.5B-Instruct`, FP16, vLLM 0.31.0, GTX 1660 Ti) was
+measured across baseline, prefix caching, context length, concurrency, workload composition, stress, and RAG
+scenarios on the 150-document TechQA corpus and the shared 20-question test set.
+Every scenario has its own MLflow run in experiment `techqa-vllm-inference`, and run
+`4a28d0a1827d4eadb483639a9afda711` holds the seven figures and the scenario run-ID index.
+
+A controlled 80-request comparison measured the final serving configuration: putting the document before the
+question in the prompt.
+
+| Prompt layout | First-question TTFT | Follow-up TTFT | Follow-up latency | Prefix cache hit |
+|---|---:|---:|---:|---:|
+| Document first | 2.255 s | 0.834 s | 1.350 s | 41.9% |
+| Question first | 2.253 s | 2.207 s | 2.722 s | 10.0% |
+
+Both arms matched on prompt length (0.4 token mean difference) and on first-question TTFT (paired t = -0.16),
+so the follow-up gap is attributable to prefix reuse rather than prompt size.
+Document-first cut follow-up TTFT by 62.2% and was faster on 20/20 documents (paired t = +17.6).
+Reordering the prompt also changed the generated text in 35 of 40 answer pairs, so this is a latency result, not
+a quality result.
+Throughput kept rising to the highest level tested (0.433 request/s at concurrency 32) while p95 latency reached
+about 74 seconds, so one concurrent request remains the best choice for interactive responses.
+
+On 100 TechQA documents and 20 questions, the selected retrieval found the gold document in 20/20 cases, and
+judged responses scored 0.953 faithfulness and 0.943 answer correctness (MLflow run
+`66def2f12b754fee8a70fabea1ef2433`).
+
+Full tables, hypotheses, and limits are in [`docs/vllm_techqa_benchmark.md`](docs/vllm_techqa_benchmark.md).
 
 ### Historical Local Embedding A/B Study
 

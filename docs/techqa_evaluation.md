@@ -1,5 +1,8 @@
 # TechQA evaluation
 
+The offline 850/150 passage windows differ from the API's 850/120 chunking.
+See [Chunking E2E](chunking_e2e.md) for the full path and metric interpretation.
+
 The lightweight TechQA inputs are `eval_data/corpus.jsonl` and `eval_data/eval_questions.json`.
 The first file has 100 documents, and the second has 20 questions with reference answers and gold document IDs.
 The original files remain in `D:\Downloads\TechQA\rag_eval_light\`.

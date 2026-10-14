@@ -1,0 +1,302 @@
+[
+  {
+    "id": "TRAIN_Q001",
+    "question": "Netcool/Impact (all versions): How is the Exit() action function expected to work with User Defined Functions?\n\nNetcool/Impact (all versions)\n\nUsing the Exit() action function within a User Defined Function in a Policy will not exit the Policy process.",
+    "ground_truth": "This is because the Exit() parser function in IPL is designed to exit the immediate scope. To carry the action outside of the User Defined Function to the Policy level one would have to set a variable that is then tested immediately after the User Defined Function call",
+    "gold_doc_id": "swg21675316"
+  },
+  {
+    "id": "TRAIN_Q019",
+    "question": "i cannot enter SPSS statistics trial program\n\n\n\nI've downloaded the 14-days trial of SPSS subscription for 32bit, windows. After opening the program I'm asked to login and after entering my username and password a blank page comes up. And there is no way to proceed from here. I already saw previous answers about SPSS trial Login error, and there is a link(https://ibm.box.com/s/huaafbjzabkyblh47n7g4l0o4gxp4zdy) to download the zip file of 'jxbrowser'. But i cannot enter the link, and the webpage says \"probably the address was changed or deleted.\"\n\ni'm using Windows 7(32bit), and just want to know how can i resolve it.\n",
+    "ground_truth": "The most likely cause of this issue is installation of the 32bit IBM SPSS Statistics Subscription software on a 64bit machine. To fix the issue, please uninstall the 32bit and download and install the 64bit application from your Products & Services window on IBM.com. If you find that this does not resolve your issue, you have a new issue. Please open a Service Request using the Client Support Portal: http://ibm.biz/IBMClientSuccessPortal",
+    "gold_doc_id": "swg22001418"
+  },
+  {
+    "id": "TRAIN_Q038",
+    "question": "We want to backout the Cognos component of Business Monitor to a previous version. What do we have to take care of?\n\nWe want to backout the Cognos component of Business Monitor to a previous version. What do we have to take care of? ",
+    "ground_truth": "Stop the Cognos service and ensure that Cognos Configuration is not running. \n 2. When setting up the configuration of a newly installed Cognos BI environment, it is important to note that if you configure the new installation against the original content store, it is permanently upgraded to the new version and can no longer be used in the original environment. As a result, always create a backup of the content store prior to upgrading.\n    If a roll back to the original version is required, you can simply restore the backup. However, any work done after the content store has been upgraded (reports, models, security, etc...) to the new version will be lost, as all of this information is saved in the content store.\n    If you try to revert back to an earlier environment configured against the upgraded content store, you will get an error similar to the one below:\n    CM-CFG-5027 Unable to upgrade the content store to the to the version N that is compatible with this version of Content Manager. The current version of the content store is M. \n 3. Also, please refer to the notes on the fix pack which would include perquisites on Backup/Restore of content store and also other requirements. \n 4. For versions 8 - 10.2.1: In the <cognos_install>/uninstall/backup directory there will be a list of date stamped folders with the applied fix packs and/or interim fixes. \n    For versions 10.2.1 FP1 and above: This is stored in the <cognos_install>/bkp directory \n 5. Go into the folders and check the cmplst.txt file and check for the correct version to revert to. \n 6. Once the correct version is found, copy the contents of the whole folder and paste it at the <cognos_install> level, which will overwrite the files applied by fix pack or interim fix update. \n 7. Start the Cognos service.",
+    "gold_doc_id": "swg21341204"
+  },
+  {
+    "id": "TRAIN_Q046",
+    "question": "Does Linux KVM monitoring agent support CANDLEDATA function?\n\nDoes Linux KVM monitoring agent in ITM support CANDLEDATA function? ",
+    "ground_truth": "The CANDLEDATA mechanism is available with ITM 6.30.05.00.",
+    "gold_doc_id": "swg21695194"
+  },
+  {
+    "id": "TRAIN_Q055",
+    "question": "P8 CPE 5.2.1 error:  FNRCC0110E - ERROR FixedContentProviderCache.getProvider failed to init provider\n\n\n\nNew P8 CPE 5.2.1 install does not see the Centera Fixed Storage. The following error is returned:\n\nFNRCC0110E: CONTENT_FCP_OPERATION_FAILED: The [initialize] operation on the fixed content provider [com.filenet.engine.content.fcprovider.centera.CenteraFCP(0)] failed. FPLibrary (Not found in java.library.path)\n\nHow do I fix this?",
+    "ground_truth": "After making any changes to the setCenteraLibPath.sh or setCenteraLibPath.bat file restart WebSphere from the IBM console or the changes will not be detected.",
+    "gold_doc_id": "swg21502037"
+  },
+  {
+    "id": "TRAIN_Q071",
+    "question": "Why does my upgrade to BigFix version 9.2.5 take a very long time?\n\nMy upgrade to BigFix version 9.2.5 takes a very long time. What do I need to do?",
+    "ground_truth": "It is important to allow the upgrade to complete when in this state, and not attempt to cancel or kill the upgrade process. To verify the upgrade is still active, check that the following process is still running: \n\nWindows: BESAdmin.exe \n\nLinux: BESAdmin",
+    "gold_doc_id": "swg21962862"
+  },
+  {
+    "id": "TRAIN_Q092",
+    "question": "ClassCastException IlrStorePolicy$SerializedENamedElement incompatible with EStructuralFeature\n\n\n\nWe keep getting the following error when navigating in Decision Center on Websphere Application Server.\n\njava.lang.ClassCastException: ilog.rules.teamserver.web.IlrStorePolicy$SerializedENamedElement incompatible with org.eclipse.emf.ecore.EStructuralFeature\n\nDoes anyone know how we can avoid this error?\n",
+    "ground_truth": "WebSphere® Application Server Session Manager throws NotSerializableException when it tries to serialize non-serializable SessionData from the application before sending it to PMI.\n\nRESOLVING THE PROBLEM\nThe application needs to ensure there is no session object that is not serializable. The object needs to implement java™.io.Serializable interface.",
+    "gold_doc_id": "swg21268440"
+  },
+  {
+    "id": "TRAIN_Q107",
+    "question": "How to increase the HTTP Session time-out value for Workplace application on WebSphere Application Server?\n\nWe would like to increase the HTTP Session time-out value for our Workplace application. Where are all the locations that this value is set and what are their precedence? ",
+    "ground_truth": "The HTTP Session time-out can be set in the following places: \n\n * From the Administrative Console at the server, Enterprise application, and Web application levels \n * At the time when the application is packaged \n * In the application code",
+    "gold_doc_id": "swg21163875"
+  },
+  {
+    "id": "TRAIN_Q111",
+    "question": "How to find details of Corrupted Object from the entries in db2diag.log?\n\nWe have corruption in DB2 Database and got entries for corrupted Object in db2diag.log ,Need to find details of the Object using information dumped in db2diag.log ",
+    "ground_truth": "When we have corruption in the database we may received following kind of entries in db2diag.log \nThese also notify object where we t where we have detected corruption in the Database.",
+    "gold_doc_id": "swg21983129"
+  },
+  {
+    "id": "TRAIN_Q122",
+    "question": "Why Theme Updates are not updated in the browser cache ?\n\n\n\nIf you change graphics in page header. Then packed the war file and update it via the Integrated Solutions Console. But the old graphic is still displayed until the user press Ctrl + F5 in Internet Explorer.",
+    "ground_truth": "Changing the digest setting generates different URLs, so the updated theme resources can be loaded from the server.",
+    "gold_doc_id": "swg21647572"
+  },
+  {
+    "id": "TRAIN_Q123",
+    "question": "Updating SCA applications & internal SCA module queues\n\nWhen updating an existing SCA module using the ISC, I noticed that internal SCA queues (sca/<module>/...) on the SCA.SYSTEM bus) are deleted and recreated.  One can potentially loose messages on these queues. Is there a fix to the problem?",
+    "ground_truth": "To resolve this issue, use the SCA.recycleDestinations custom Java™ virtual machine (JVM) property for the module. Set the property to false to preserve SCA destinations.",
+    "gold_doc_id": "swg21639375"
+  },
+  {
+    "id": "TRAIN_Q124",
+    "question": "Portal v8.5 install fails with INSTCONFFAILED - No Portral logs are written\n\nIf you are trying to install Portal v8.5 on WAS 8.5.5.5 or less it may fail when running the manageprofiles.sh. You will get this exception; SEVERE\ncom.ibm.ws.profile.cli.WSProfileCLIAugmentProfileInvoker\nexecuteWSProfileAccordingToMode\n1\nINSTCONFFAILED: Profile augmentation failed. For more\ninformation, consult\n/opt/IBM/WebSphere/AppServer8/logs/manageprofiles/portal01_create.log.",
+    "ground_truth": "The parsing code is updated so the problem no longer occurs.\n   \n   The fix for this APAR is currently targeted for inclusion in\n   fix pack 8.5.5.6.",
+    "gold_doc_id": "swg1PI37248"
+  },
+  {
+    "id": "TRAIN_Q129",
+    "question": "How do I identify Indexing errors in Atlas database?\n\nHow do I identify Indexing errors in Atlas database? ",
+    "ground_truth": "Login to Atlas database as PSSAPL user \n 2. Run select * from ctx_user_index_errors; \n 3. Copy the value in the ERR_TEXTKEY Field \n 4. Run select * from documentlibrary where rowid='<value from Step 3> '; \n 5. This will list the document which has the indexing error",
+    "gold_doc_id": "swg21982458"
+  },
+  {
+    "id": "TRAIN_Q135",
+    "question": "WAS runtime classpath does not match WAS Server Runtime library in RAD\n\n I've run into a classpath problem in WAS 8.0 for my web application. The problem is that it compiles fine i RAD but I get a NoClassDefFoundError in Runtime.  ",
+    "ground_truth": "Some of the Java methods found in the JARs in the server's plugin directory are available to be called, but some of them are considered internal use only and an exception is thrown if you try to call them from user code.",
+    "gold_doc_id": "swg21497604"
+  },
+  {
+    "id": "TRAIN_Q162",
+    "question": "Crash happened due to \"PI50993:Apache HTTPComponents vulnerabilities in WebSphere Application Server (CVE-2012-6153, CVE-2014-3577)\"\n\n\n\nDetails of gpf crash events: A VerifyError was thrown due to \"Inaccessible class\" at offset 39(0x27) of the method executeInternal(Lorg/springframework/http/HttpHeaders;[B)Lorg/springfram ework/http/client/ClientHttpResponse of the above class org/springframework/http/client/HttpComponentsClientHttpRequest.\n\nLooking at method the bytecodes :\n\n31 invokespecial 15 org/apache/http/entity/ByteArrayEntity.([B)V 34 astore 4 36 aload3 37 aload 4 39 invokeinterface2 41 invokeinterface 16 org/apache/http/HttpEntityEnclosingRequest.setEntity(Lorg/apache/http/Ht tpEntity;)V\n\nThe above sequence of bytecodes indicates it created an instance of org/apache/http/entity/ByteArrayEntity, trying to cast it to type Lorg/apache/http/HttpEntity; which in turns led to the \"Inaccessible class\" VerifyError message.\n\nIt is clear that class org/apache/http/HttpEntity was not loaded at all:\n\n    allclasses | grep org/apache/http/HttpEntity\n",
+    "ground_truth": "There would be NoClassDefFoundError observed after applying the fix because the API in HTTPCore and HTTPClient libraries are no long visible to application. To resolve this error, application may need to be updated with HTTPCore and HTTPClient libraries bundled.",
+    "gold_doc_id": "swg24041394"
+  },
+  {
+    "id": "TRAIN_Q207",
+    "question": "How to configure the Data Power Agent to communicate on TLSv1.2 ?\n\nAPM agent for data power is not able to communicate with data power server when SSL is enabled. Since we are connecting to TLS version 1, where data power server supports only TLS 1.2. ",
+    "ground_truth": "A new configuration item \"KBN_SOMA_PROTOCOL\" is introduced to support TLS.\nThe value should be SSL/TLSv1/TLSv1.1/TLSv1.2. The default value is \"TLSv1\". \nIf you want to support TLSv1.1/TLSv1.2, please change it manually.",
+    "gold_doc_id": "swg24041563"
+  },
+  {
+    "id": "TRAIN_Q217",
+    "question": "Download link for application support for OMEGAMON for Messaging on z/OS V7.5\n\nWhere is download link for application support for IBM OMEGAMON for Messaging on z/OS V7.5.0 on ITM SLES zlinux servers? ",
+    "ground_truth": "The LCD7-3513-09 [ftp://public.dhe.ibm.com/software/tivoli_support/misc/PandA/tools_agent/tools/appsupt/LCD7-3513-09.zip] IBM Tivoli OMEGAMON XE for Messaging V7.5.0 Data Files for z/OS DVD is the latest level available for application support. This DVD contains application support files for the following product:  *  IBM Tivoli OMEGAMON XE for Messaging, version 7.5.0 \n\nThe CD can be found at the following url: ftp://public.dhe.ibm.com/software/tivoli_support/misc/PandA/tools_agent/tools/appsupt/ [ftp://public.dhe.ibm.com/software/tivoli_support/misc/PandA/tools_agent/tools/appsupt/].",
+    "gold_doc_id": "swg21255545"
+  },
+  {
+    "id": "TRAIN_Q221",
+    "question": "Case Analyzer is not working\n\n\n\nCaseAnalyzer is not working, no latest audit log although service is running\n\nError in log:\n\n\"CAPublisher c2dce3b9 [Error] Unexpected exception occurred while processing task CAPublisher for store CASTORE.; Exception: com.microsoft.sqlserver.jdbc.SQLServerException: The query processor ran out of internal resources and could not produce a query plan. This is a rare event and only expected for extremely complex queries or queries that reference a very large number of tables or partitions. Please simplify the query. If you believe you have received this message in error, contact Customer Support Services for more information.\"",
+    "ground_truth": "You can set the BATCH value for the analyzer.db.updateMode parameter with the following query in the Case Analyzer store database: \n\n \n\n * UPDATE X_CAProperties SET PropValue='BATCH' \n   WHERE PropName ='analyzer.db.updateMode'",
+    "gold_doc_id": "swg22004617"
+  },
+  {
+    "id": "TRAIN_Q233",
+    "question": "Help with Security Bulletin: API Connect is affected by a cross-site scripting vulnerability CVE-2018-1382\n\nI need to understand details regarding Security Bulletin: API Connect is affected by a cross-site scripting vulnerability CVE-2018-1382. Where can I find this information? ",
+    "ground_truth": "CVEID:CVE-2018-1382 [http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2018-1382]\nDESCRIPTION:IBM API Connect is vulnerable to cross-site scripting. This vulnerability allows users to embed arbitrary JavaScript code in the Web UI thus altering the intended functionality, potentially leading to credentials disclosure within a trusted session.\nCVSS Base Score: 5.4\nCVSS Temporal Score: Seehttps://exchange.xforce.ibmcloud.com/vulnerabilities/138079 [https://exchange.xforce.ibmcloud.com/vulnerabilities/138079]for the current score\nCVSS Environmental Score*: Undefined\nCVSS Vector: (CVSS:3.0/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N)",
+    "gold_doc_id": "swg22013054"
+  },
+  {
+    "id": "TRAIN_Q235",
+    "question": "Cannot start Maximo/SCCD with error BMXAA4087E - The MAXMESSAGE value for group login and key username could not be retrieved.\n\nCannot start Maximo/SCCD with error BMXAA4087E - The MAXMESSAGE value for group login and key username could not be retrieved.",
+    "ground_truth": "For IBM DB2, the value is COALESCE, and you cannot change the default value. \n\nFor Oracle, the value is NVL, and you cannot change the default value.\nFor SQL Server, the value must be set to ISNULL.\n\nMake sure MXServer is stopped. Connect to database back end and update mxe.db.format.nullvalue by running following query :- \n\nupdate maximo.maxpropvalue set propvalue='COALESCE' where propname='mxe.db.format.nullvalue'; \n\nStart MXServer again.",
+    "gold_doc_id": "swg21959714"
+  },
+  {
+    "id": "TRAIN_Q242",
+    "question": "Getting Delay or AMQ9716: Remote SSL certificate revocation status check failed  when trying to start a MQ SSL channel, why?\n\nGetting Delay or AMQ9716: Remote SSL certificate revocation status check failed when trying to start a MQ SSL channel, please help resolve this? The error can occur on the MQ server or also a MQ client application..\n\nAMQ9716: Remote SSL certificate revocation status check failed\n\nRemote SSL certificate revocation status check failed for channel '???'.\n\nEXPLANATION: WebSphere MQ failed to determine the revocation status of the remote SSL\ncertificate for one of the following reasons:\n\n(a) The channel was unable to contact any of the CRL servers or OCSP responders for the certificate.\n(b) None of the OCSP responders contacted knows the revocation status of the certificate.\n(c) An OCSP response was received, but the digital signature of the response could not be verified.",
+    "ground_truth": "With the release of WebSphere MQ V7.0.1.0 the use of OCSP certificate revocation checking was included. With this new feature, most likely your SSL certificates have a OCSP AuthorityInfoAccess (AIA) certificate extension embedded inside them. \n\n\nThis was ignored before V7.0.1.0. Now it is being used to verify the certificate. The most likely cause of the failure is that the system can not access the servers listed in the AIA. This then returns a UNKNOWN status when the check is done. The default action for MQ is to not allow the channel to start and the AMQ9716 to be reported when the UNKNOWN is returned.",
+    "gold_doc_id": "swg21399255"
+  },
+  {
+    "id": "TRAIN_Q261",
+    "question": "Cannot Start JazzSM Dash after ObjectServer as a User Repository\n\n\n\nUnable to see the User roles and Groups in WebSphere Admin Console. Added Repositories in the WebSphere Admin Console. It was added under Security.\n\nConsole Settings > Websphere Administrative Console > Security > Global Security > Federated Repositories\n\nAdded Object Server Repository\n\nServer was stopped. Tried to restart but unable to start the JazzSM Dash server\n\nWhy would the server not restart?\n",
+    "ground_truth": "This can be caused by several reasons eg... server will not start with security enabled, forgot administrative password, etc...",
+    "gold_doc_id": "swg21405302"
+  },
+  {
+    "id": "TRAIN_Q270",
+    "question": "How to resolve \"An unexpected error occurred. Contact your system administrator. ICWPA1001E\"\n\n\n\nWhen trying to add people to a matter request when there are more than 1000 people in the clipboard, the following error is reported:\n\nAn unexpected error occurred. Contact your system administrator. ICWPA1001E\"",
+    "ground_truth": "To work around the limitation, when you add people from the clipboard, add fewer than 1000 people at one time.",
+    "gold_doc_id": "swg27046675"
+  },
+  {
+    "id": "TRAIN_Q277",
+    "question": "No data in some workspaces for MySQL agent\n\nWhy Monitoring agent for MySQL when configured to monitor MySQL server versions 5.7.6 and above does not collect data for some of the attribute groups? ",
+    "ground_truth": "Users wanting to run the agent on MySQL server versions 5.7.6 and above should use the 'show_compatibility_56' [https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html] system variable which affects whether MySQL 5.6 compatibility is enabled with respect to how system and status variable information is provided by the INFORMATION_SCHEMA.",
+    "gold_doc_id": "swg22008622"
+  },
+  {
+    "id": "TRAIN_Q285",
+    "question": "How do I upgrade my virtual DataPower Appliance from 5.0 firmware to 6.0+ firmware?\n\nWhen attempting to upgrade my Virtual DataPower Appliance from 5.0.0.0 firmware version to 6.0+ firmware versions, I receive a failure message. ",
+    "ground_truth": "You must install the 5.0.0.8 or later fix pack to upgrade to 6.0.0.0 or later. The 5.0.0.8 fix pack contains a required fix to allow the larger sized firmware image to fit.",
+    "gold_doc_id": "swg21638268"
+  },
+  {
+    "id": "TRAIN_Q297",
+    "question": "What action is required for IBM WebSphere MQ Hypervisor Edition for Red Hat Enterprise Linux Server for the GNU C library (glibc) vulnerability (CVE-2015-0235)?\n\nIBM WebSphere MQ Hypervisor Edition for Red Hat Enterprise Linux Server requires customer action for the GNU C library (glibc) vulnerability that has been referred to as \"GHOST\". What action is required? ",
+    "ground_truth": "IBM strongly recommends that you should contact Red Hat to obtain fixes and install fixes for Red Hat Enterprise Linux (RHEL).",
+    "gold_doc_id": "swg21695676"
+  },
+  {
+    "id": "TRAIN_Q345",
+    "question": "Where can I find information on security issues addressed in WAS fix pack 8.5.5.6?\n\nI am planning to upgrade to WAS fix pack 8.5.5.6 and would like to know what security vulnerabilities, if any, are addressed in this fix pack. ",
+    "ground_truth": "Cross reference list for security vulnerabilites fixed in IBM WebSphere Application Server 8.5.5.6, IBM WebSphere Application Server Hypervisor 8.5.5.6 and IBM WebSphere Application Server Liberty Profile 8.5.5.6.",
+    "gold_doc_id": "swg21959083"
+  },
+  {
+    "id": "TRAIN_Q350",
+    "question": "Missing option to fill in attributes when trying to deploy a pattern\n\nI tried to deploy a pattern and I have some parameters to modify at deployment time. But I can't see my parts/attributes in the Component Attribute List. ",
+    "ground_truth": "To show missing component attributes for configuration, lock any one of the attributes, such as the name attribute. This action causes the other component attributes to be displayed for configuration.",
+    "gold_doc_id": "swg27044407"
+  },
+  {
+    "id": "TRAIN_Q355",
+    "question": "What does the message \"ERROR: Records trailing spring space set to 512 is too small...\" mean?\n\nWhat does the message \"ERROR: Records trailing spring space set to 512 is too small...\" mean? ",
+    "ground_truth": "This error can occur when a query includes multiple aggregates against varchar or nvarchar columns. As the query is being processed the system allocates memory for each row of the result set. This includes each of the GROUP BY columns and each of the aggregates. For queries doing aggregates on variable length columns, the total length of the record will vary during the process.",
+    "gold_doc_id": "swg21567862"
+  },
+  {
+    "id": "TRAIN_Q361",
+    "question": "Is MQ V7.0.1 is going out of support?\n\nWhen is the last date of support?",
+    "ground_truth": "Product Version Release Date End of Support Platforms WebSphere MQ V7.0.1 28 Aug 2009 [https://www.ibm.com/common/ssi/cgi-bin/ssialias?subtype=ca&infotype=an&appname=iSource&supplier=897&letternum=ENUS209-245] 30 Apr 2015",
+    "gold_doc_id": "swg21674407"
+  },
+  {
+    "id": "TRAIN_Q403",
+    "question": "Help with Security Bulletin: IBM PureApplication System is affected by a security vulnerability. (CVE-2015-1890)\n\nI need to understand details regarding \"Security Bulletin: IBM PureApplication System is affected by a security vulnerability (CVE-2015-1890)\". Where can I find this information? ",
+    "ground_truth": "CVEID: CVE-2015-1890 [http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2015-1890] \n\nDESCRIPTION: IBM General Parallel File System could allow someone who has access to a snap file generated by the gpfs.snap tool (/usr/lpp/mmfs/bin/gpfs.snap) to read the private keys of certificates used by GPFS for daemon communications via the TLS protocol.\nCVSS Base Score: 3.5\nCVSS Temporal Score: See [https://exchange.xforce.ibmcloud.com/]https://exchange.xforce.ibmcloud.com/vulnerabilities/101382 [https://exchange.xforce.ibmcloud.com/vulnerabilities/101382] for the current score\nCVSS Environmental Score*: Undefined\nCVSS Vector: (AV:N/AC:M/Au:S/C:P/I:N/A:N)",
+    "gold_doc_id": "swg21964025"
+  },
+  {
+    "id": "TRAIN_Q428",
+    "question": "ITMv6 issue: Cognos reports run for an extended period, sometimes never finishes\n\nITMv6 issue: Cognos reports run for an extended period, sometimes never finishes\n\n",
+    "ground_truth": "TCR 2.1/2.1.1 server provides a default setting for heap size, a minimum size (xms) of 512MB and a maximum size (xmx) of 1024MB.",
+    "gold_doc_id": "swg21585678"
+  },
+  {
+    "id": "TRAIN_Q440",
+    "question": "SCM check analyses showing as not reported in the SCA user interface\n\n\nSCM check analyses showing as <not reported> the SCA user interface.\n\nCheck analyses in the SCA interface are showing as in the SCA user interface where at one point they were activated and returning data. Now they are not activated and not returning data.\n\nHow do I solve this issue?",
+    "ground_truth": "To resolve the issue, have an active operator reactivate the check analyses and then run a new import in SCA. As a best practice, it is recommended that you have an operator account dedicated to activating the SCM check analyses in your deployment. This account should never be deleted.",
+    "gold_doc_id": "swg21983904"
+  },
+  {
+    "id": "TRAIN_Q456",
+    "question": "zonecfg error while starting nodeagent and dmgr\n\n\n\nI saw zonecfg error while starting nodeagent and dmgr in solaris server\n\nMy env is Oracle Solaris 11.2 SPARC, and WAS is 8558, jave 1.7. [1/22/16 21:31:18:379 AEDT] 00000001 SystemOut O java.lang.Exception: command /usr/sbin/zonecfg failed with 1 at com.ibm.ws.xd.agent.hypervisor.SolarisHypervisor.executeCommand(SolarisHypervisor.java:357) at com.ibm.ws.xd.agent.hypervisor.SolarisHypervisor.access$100 (SolarisHypervisor.java:30) at com.ibm.ws.xd.agent.hypervisor.SolarisHypervisor$Zone.processZoneCfg(SolarisHypervisor.java:570) at com.ibm.ws.xd.agent.hypervisor.SolarisHypervisor$Zone.(SolarisHypervisor.java:461) at com.ibm.ws.xd.agent.hypervisor.SolarisHypervisor ..... Is that normal behavior and what's the exactly meaning of the error?",
+    "ground_truth": "When WebSphere Application Server is run as a non-root user it will not be able to run native commands. This limited access causes the exceptions.",
+    "gold_doc_id": "swg21626683"
+  },
+  {
+    "id": "TRAIN_Q473",
+    "question": "Why Summarization and pruning are failing with SQL Error Code = -4220 on AIX_LPAR table?\n\nSummarization and pruning are failing with SQL Error Code = -4220 on AIX_LPAR table.  What's the fix?\n",
+    "ground_truth": "Update the invalid data with a valid UTF-8 character string.",
+    "gold_doc_id": "swg21684365"
+  },
+  {
+    "id": "TRAIN_Q490",
+    "question": "TWS / DWC and WebSphere 8.5.5.4+\n\nWebSphere for TWS & DWC were upgraded to 8.5.5.4 on most servers in a particular environment. However, any TWS servers that still had 8.5.5.2, could no longer be seen by the new DWC / WAS 8.5.5.4 servers. Those lower WAS version engines could not be added to the DWC.\n\nErrors seen are:\n\n     AWSUI0833E The operation could not be completed. There has been a communication failure. \n     The internal message is: AWSJCO005E WebSphere Application Server has given the following error: Error getting WsnNameService properties. ",
+    "ground_truth": "You can solve this problem by configuring your TWS engines to use TLS instead of SSL :",
+    "gold_doc_id": "swg21964202"
+  },
+  {
+    "id": "TRAIN_Q494",
+    "question": "Why do we observe the transaction rollback errors J2CA0024E and DSRA0080E with Oracle 12c and how can we fix it?\n\n\n\nWe are using BPM Advanced v8.5.6 in connection with the Oracle JDBC Driver 12.1.0.1.0. We observe many database transaction rollback exceptions:\n\n     J2CA0024E: Method rollback, within transaction branch ID <null> of resource pool jdbc/BPEDB, caught com.ibm.ws.exception.WsException: DSRA0080E: An exception was received by the Data Store Adapter. See original exception message: Could not rollback with auto-commit set on. with SQL State : 99999 SQL Code : 17274\n\nDue to the technote \"Advanced database support for IBM BPM Standard, IBM BPM Advanced, and IBM Business Monitor on distributed platforms\" this is a supported configuration.\n\nWhy do we observe these errors and how can we fix it?",
+    "ground_truth": "To use Oracle 12c with IBM Business Monitor V8.5.5, a new JVM property must be defined. Add the following JVM property to the Monitor server JVM:\n\noracle.jdbc.autoCommitSpecCompliant=false",
+    "gold_doc_id": "swg21690673"
+  },
+  {
+    "id": "TRAIN_Q495",
+    "question": "Is there a way to separate the application logging from WebSphere Application Server logging?\n\n\n\nCurrently the WebSphere error logs as well as the application error logs are printed in same file. The same case with system out logs. Our goal is to separate the application system error and out logs from WebSphere system logs.\n\nIf we are use log4j in the application for separating the logs what is the best way to do this?",
+    "ground_truth": "In WAS V8.5, we added the application name to log and trace records stored using HPEL (High Performance Extensible Logging). Since HPEL lets you format and filter your log content after it has been persisted to the HPEL log/trace repository, this lets you decide if you want to see your application content on its own (helpful for uncluttered debug of an application), or together with the application server log/trace content (helpful to see impact of server on applications, and vice versa).",
+    "gold_doc_id": "swg21995397"
+  },
+  {
+    "id": "TRAIN_Q516",
+    "question": "RecognizePageFieldsICR_C aborts with Page Type change\n\n I have an DeveloperWorks application that runs: Survey. In the application PageID Task there is a function that sets the Page Type to ReliefForm (based on a barcode)\n\nDoes anyone know why when I change the SetPageType to set another name, the RecognizePageFieldsICR_C in the Profiler Task aborts? If I put the name back the action runs fine. ",
+    "ground_truth": "In Datacap Studio, set the c_cr variable to USA prior to the call to recognition as follow:\n\nSaveAsCurrentObjVariable(\"c_cr\", \"USA\")\nRecognizeFieldICR_C",
+    "gold_doc_id": "swg21654520"
+  },
+  {
+    "id": "TRAIN_Q520",
+    "question": "OCR Results for Bold fonts\n\n\n\nHi all,\n\nI am having issue with extracting front that are bold, big front. May I know if Datacap have limitation on capturing metadata with big, bold front such as title of the document. I am using RecognizePageOCR_A for extraction of meta data and every other words were being extracted fine except those that are big. The attachment are the sample of front that could not be captured.",
+    "ground_truth": "Do one of the following as appropriate for the situation. \n\n * Verify that the newest recognition engine is being used. Currently this is done using the RecognizePageOCR_S action from the ocr_sr library. \n * Increase the height limit for the action using SetMaxCharacterHeightTMM(x) where x represents the height in pixels. Default depends on the DPI, but for 300 DPI is 64. \n * Reduce the height of the word in pixels. This may be done either by making the word smaller, or by reducing the number of pixels per inch for the tiff.",
+    "gold_doc_id": "swg21620875"
+  },
+  {
+    "id": "TRAIN_Q523",
+    "question": "If we need to log client ip, if the FELB is enabled,  does it still need enable x-forwarder-for?\n\nIf we need to log client ip, if the FELB is enabled,  does it still need enable x-forwarder-for?",
+    "ground_truth": "This is a known limitation in the current implementation of haproxy ( FELB ), especially with the layer 7 where SSL termination is handled.\nNotice that forwarding a client IP address to a backend works when the FELB is setup to use non-SSL configuration.",
+    "gold_doc_id": "swg21971127"
+  },
+  {
+    "id": "TRAIN_Q525",
+    "question": "Can I change the ITCAM J2EE Agent Monitoring Level via the TEPS in version 7.1.1?\n\n\n\nIn the 7.1 version of the J2EE agent I could use the Agent Configuration to change the Monitoring Level for the agent- https://www.ibm.com/support/knowledgecenter/en/SS3JRN_7.2.0/com.ibm.itcamfapps_ad.doc_72/J2EE_agent_tema_install_guide/step10.html\n\nSo how can I change the Monitoring Level in the 7.1.1 agent?\n",
+    "ground_truth": "In the older release of the J2EE agent (v6.2 FP6), there was an option to specify the Monitoring Level, Sampling Rate and other parameters (threshold values, time intervals, etc..) during the configuration phase of the agent itself. This is now not possible in the new J2EE agent v7.1.1.0.0 configuration panels as these options are not available anymore. \n\nThe default values for the Monitoring Level and the Sampling Rate are L1 and 2% respectively. If you want to change these default values permanently, then please make these changes.\n\nIn the $ITM_HOME/config (Unix) dir or %ITM_HOME%\\TMAITM6 (Windows), you will find the <hostname>_yj.xml file. Make a copy of this file, then stop the agent and make changes to the parameters (see screenshot below) in the file. Save file, restart the agent. The new values will now be accepted in the agent. If you are deploying a new Weblogic application, stop the agent, modify the <hostname>_yj_<wls_instance>.xml file then restart the agent again.",
+    "gold_doc_id": "swg21700308"
+  },
+  {
+    "id": "TRAIN_Q528",
+    "question": "We have configured a new LDAP server in Atlas but why does authentication work for only some users ?\n\nWe have configured a new LDAP server in Atlas but why does authentication work for only some users ? ",
+    "ground_truth": "Make sure the user who failed to login exists in Atlas and is active. If not , create the corresponding user manually or use HR Loader to import those users who are part of the new LDAP server.",
+    "gold_doc_id": "swg21976589"
+  },
+  {
+    "id": "TRAIN_Q549",
+    "question": "What does the end-file-message mean while doing a launchpad.sh in the MS\"\n\nI am getting an end-file-message means while doing a launchpad.sh in the MS. How do I solve the problem?",
+    "ground_truth": "Use the commands shown below to verify you have them installed, otherwise contact your Linux system administrator and installt these required libraries.",
+    "gold_doc_id": "swg21985630"
+  },
+  {
+    "id": "TRAIN_Q562",
+    "question": "Does Portal 6.1.x support Oracle 11g?\n\n\n\nWe are running Portal Server v6.1.0.6 and I need to know what the newest version of Oracle that is supported with the WPS 6.1.0.6?\n\nSpecifically, What version of Oracle 11g is?",
+    "ground_truth": "Oracle 11gR2 V11.2.0.1 (including RAC)",
+    "gold_doc_id": "swg27019359"
+  },
+  {
+    "id": "TRAIN_Q574",
+    "question": "Help with Security Bulletin: WMB and IIB are affected by information disclosure vulnerability (CVE-2017-1126)\n\nI need to understand details regarding Security Bulletin: WebSphere Message Broker and IBM Integration Bus are affected by information disclosure vulnerability (CVE-2017-1126). Where can I find this information? ",
+    "ground_truth": "CVEID: CVE-2017-1126 [http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2017-1126]\nDESCRIPTION: IBM Integration Bus and WebSphere Message Broker could allow an unauthorized user to obtain sensitive information about software versions, which could lead to further attacks.\nCVSS Base Score: 5.3\nCVSS Temporal Score: See https://exchange.xforce.ibmcloud.com/vulnerabilities/121341 [https://exchange.xforce.ibmcloud.com/vulnerabilities/121341] for the current score\nCVSS Environmental Score*: Undefined\nCVSS Vector: (CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N)",
+    "gold_doc_id": "swg22008470"
+  },
+  {
+    "id": "TRAIN_Q575",
+    "question": "Why dbheap memory keeps increasing when I am running select count(*) for each table in my BLU database?\n\n\n\nI am running DB2 V11.1. It is a BLU database size of about 70T, most of the tables are column organized. I run select count(*) for each table, and finally got out of memory for dbheap. My questionn is:\n\n    What data is stored in the dbheap ?\n\n   ",
+    "ground_truth": "This is expected result. Every newly accessed table loads the tcb and has associated allocations for data, index, lob, compression dictionaries if applicable. This memory allocation is persistent/cached until the database deactivates or the table is dropped.",
+    "gold_doc_id": "swg21986534"
+  },
+  {
+    "id": "TRAIN_Q581",
+    "question": "OOM exception thrown when trying to configure an ITCAM for WAS 7.2 Data Collector\n\nI am trying to configure an ITCAM for WAS 7.2.0.0.x DC using config.sh, but getting OOM exceptions, as following:\n\n./config.sh\n\nLog file name: /opt/IBM/ITM/dchome/7.2.0.0.10/data/config-trace.log.\n\nList of TCP/IP interfaces discovered:\n\n       1. ...\n     Enter a number [default is: 1]:\n     1\n     JVMDUMP039I Processing dump event \"systhrow\", detail \"java/lang/OutOfMemoryError\" at 2017/08/22 12:27:03 - please wait.\n....\n     java.lang.OutOfMemoryError: java.lang.OutOfMemoryError: Java heap space\n\nLooking at the javacore.txt files, I can see that this is the command throwing an OOM\n\n1CICMDLINE /opt/IBM/ITM/JRE/aix526/bin/java -classpath /opt/IBM/ITM/dchome/7.2.0.0.10/bin/jython/jython.jar:/opt/IBM/ITM/dchome/7.2.0.0.10/bin/lib/installbundle.jar -Xms256m -Xmx256m -Dpython.path=/opt/IBM/ITM/dchome/7.2.0.0.10/bin/lib:/opt/IBM/ITM/dchome/7.2.0.0.10/bin/lib org.python.util.jython /opt/IBM/ITM/dchome/7.2.0.0.10/bin/config.py\n\nHow could I solve this?",
+    "ground_truth": "The Java heap settings are set in the config.sh script in the JAVA_OPTS line. For AIX, the default settings are way too low. \n\nPlease do these changes to get it to work: \n\nMake a backup of the config.sh file, then edit it. \n\nSearch for the following line JAVA_OPTS in the config.sh file:[/support/docview.wss?uid=swg21959444&aid=1] [/support/docview.wss?uid=swg21959444&aid=1] \n\nChange the JAVA_OPTS=\"-Xms256m -Xmx256m\" to a higher value like this: \n\nJAVA_OPTS=\"-Xms512m -Xms512m\" \n\nSave file, restart the config again and see if it works now without any Out of Java heap messages.",
+    "gold_doc_id": "swg21959444"
+  },
+  {
+    "id": "TRAIN_Q584",
+    "question": "Help with Security Bulletin: Vulnerability identified in IBM WebSphere Application Server shipped with WSRR (CVE-2017-1741)\n\nI need to understand details regarding Security Bulletin: Vulnerability identified in IBM WebSphere Application Server shipped with IBM WebSphere Service Registry and Repository (CVE-2017-1741). We are running WAS traditional V9.0.0.0.  What is the recommended fix?",
+    "ground_truth": "· Upgrade to a minimal fix pack levels as required by interim fix and then apply Interim Fix PI89498 [http://www-01.ibm.com/support/docview.wss?uid=swg24044512] \n--OR-- \n· Apply Fix Pack 8.0.0.15 or later.",
+    "gold_doc_id": "swg22012345"
+  },
+  {
+    "id": "TRAIN_Q587",
+    "question": "Why can't I connect to HTTPS server using Installation Manager 1.7.2?\n\n\n\nWhen using IBM Installation Manager 1.7.2 to connect to a HTTPS server, I get the following message:\n\nThe following repositories are not connected: https://www.ibm.com/software/repositorymanager/service/com.ibm. websphere.ND.v85/8.5.5.2.\n\nWhen I try to hit the URL, I get a 404 error.",
+    "ground_truth": "IBM Installation Manager has added support for the TLS protocol in versions 1.8 and 1.7.4. Versions of the Installation Manager that are 1.7.3.1 or older, require SSL security protocol to connect to a HTTPS server. \nTo resolve the issue, update IBM Installation Manager to version 1.7.4, 1.8 or newer.",
+    "gold_doc_id": "swg21688071"
+  }
+]
